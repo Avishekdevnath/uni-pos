@@ -1,113 +1,313 @@
 # UniPOS — Universal Commerce Platform
 
-Multi-tenant SaaS point-of-sale system with tax, discount, inventory, and order management.
+A full-featured, multi-tenant SaaS point-of-sale platform designed for retail businesses, restaurants, and service providers. UniPOS handles the complete commerce lifecycle — from product catalog and inventory management through order processing, tax calculation, discount application, payment collection, and audit trail generation — all within a single, unified system.
 
-## Architecture
+Built as a modern monorepo with a decoupled backend API, a web-based admin dashboard, and a native desktop POS client for fast, reliable in-store operations.
 
-| App | Stack | Purpose |
-|-----|-------|---------|
-| `apps/backend` | NestJS 11 + TypeORM + PostgreSQL | REST API server |
-| `apps/admin` | Next.js 16 + React 19 + Tailwind | Admin dashboard |
-| `apps/pos` | Electron 41 + Vite + TypeScript | Desktop POS client |
+---
 
-**Monorepo** managed with pnpm workspaces.
+## Features
+
+### Multi-Tenant Architecture
+- Complete tenant isolation with organization → tenant → branch hierarchy
+- Per-branch configuration for taxes, inventory, discounts, and product availability
+- Branch-scoped operations ensure data never leaks across tenants
+
+### Product & Catalog Management
+- Full product CRUD with SKU, barcode, and pricing
+- Hierarchical category system for product organization
+- Per-product tax group assignment for accurate tax computation
+- Product status management (active/inactive/draft)
+
+### Tax Engine
+- **Tax Groups** — logical groupings of tax rates assignable to products
+- **Tax Configs** — per-branch tax rate definitions with support for both inclusive and exclusive tax types
+- **Inclusive tax back-calculation** — automatically computes base amount from tax-inclusive prices using the formula: `base = discounted_amount / (1 + sum_inclusive_rates)`
+- Multiple tax rates can stack on a single product (e.g., GST + service tax)
+- Tax snapshots preserved on every order line item for audit compliance
+
+### Discount System
+- **Discount Presets** — reusable discount templates (percentage or fixed amount)
+- **Scope control** — discounts can target the entire order or individual line items
+- **Branch assignment** — restrict discounts to specific branches or make them available globally
+- **Combinability rules** — enforce whether discounts can stack with others at the same scope level
+- **Validity windows** — time-bound discounts with automatic expiration (valid_from / valid_until)
+- **Min order amount** and **max discount cap** constraints
+- Discount snapshots preserved on orders for historical accuracy
+
+### Inventory Management
+- **Real-time stock tracking** with atomic balance updates using PostgreSQL upsert
+- **Stock-in operations** — receive inventory with batch tracking (supplier, cost, reference, expiry)
+- **Stock adjustments** — correct inventory with reason tracking (damaged, lost, correction, returned)
+- **Inventory movements** — full audit trail of every stock change with movement type and quantity
+- **Low stock detection** — configurable per-product thresholds with event-driven alerts
+- **Branch-product configuration** — per-branch availability and low-stock threshold settings
+- **Race-condition-safe** — `INSERT ... ON CONFLICT ... DO UPDATE ... WHERE qty + delta >= 0` prevents negative stock atomically
+- **CHECK constraint** on `on_hand_qty >= 0` as database-level safety net
+
+### Order Lifecycle
+- **State machine** — `draft → completed → cancelled` with strict transition validation
+- **Draft orders** — add/remove items, apply discounts, modify quantities before checkout
+- **Order completion** — atomic checkout flow: calculate totals → record payments → deduct inventory → generate order number → transition state
+- **Order cancellation** — with required reason tracking
+- **Order number generation** — atomic sequence per branch per day (`MAIN-20260315-0001`) with no race conditions
+- **17-step total calculation** — line subtotals → line discounts → discounted amounts → per-line tax resolution → inclusive tax back-calculation → tax amounts → line totals → order subtotal → order-level discounts → grand total
+
+### Payment Processing
+- **Multiple payment methods** — cash, card, digital wallet, bank transfer, and custom types
+- **Split payments** — multiple payment entries per order (e.g., part cash + part card)
+- **Cash tendered tracking** — records amount given and calculates change
+- **Payment validation** — ensures total payments match order amount exactly before completing
+
+### Checkout Orchestrator
+- **Atomic transactions** — entire checkout (totals + payments + inventory + order number + state transition) wrapped in a single database transaction
+- **Event buffer pattern** — domain events are collected during the transaction and emitted only after successful commit
+- **Inventory deduction** — automatically deducts stock for all order items during checkout
+- **Rollback safety** — if any step fails, the entire checkout rolls back cleanly
+
+### Event-Driven Audit System
+- **Domain events** — `OrderCompleted`, `OrderCancelled`, `PaymentRecorded`, `InventoryDeducted`, `LowStock`, `StockIn`
+- **Audit log handler** — subscribes to all domain events and persists them with JSONB payload
+- **Fail-silent logging** — audit failures never break business operations
+- **Full traceability** — every significant action is recorded with tenant, branch, user, and timestamp context
+
+### Authentication & Authorization
+- JWT-based authentication with configurable expiration
+- Bearer token authorization on all API endpoints
+- Admin seed script for initial setup
+- Per-request tenant and branch context extraction
+
+---
+
+## Tech Stack
+
+### Backend — `apps/backend`
+| Layer | Technology |
+|-------|------------|
+| Framework | NestJS 11 (Express) |
+| Language | TypeScript 5.x (strict mode) |
+| ORM | TypeORM 0.3.x |
+| Database | PostgreSQL 15+ (Neon cloud compatible) |
+| Authentication | JWT (`@nestjs/jwt`, `bcryptjs`) |
+| Validation | `class-validator` + `class-transformer` |
+| API Docs | Swagger / OpenAPI (`@nestjs/swagger`) |
+| Events | `@nestjs/event-emitter` (EventEmitter2) |
+| Runtime | Node.js 20+ |
+
+### Admin Dashboard — `apps/admin`
+| Layer | Technology |
+|-------|------------|
+| Framework | Next.js 16 |
+| UI Library | React 19 |
+| Styling | Tailwind CSS 4 |
+| Language | TypeScript |
+
+### POS Client — `apps/pos`
+| Layer | Technology |
+|-------|------------|
+| Framework | Electron 41 |
+| Build Tool | Vite + Electron Forge |
+| Language | TypeScript |
+| Distribution | Windows (Squirrel), Linux (deb, rpm), zip |
+
+### Infrastructure
+| Concern | Technology |
+|---------|------------|
+| Monorepo | pnpm 10 workspaces |
+| Database Hosting | Neon (serverless PostgreSQL) |
+| Migrations | TypeORM CLI with manual partial indexes |
+| SSL | Auto-detected from connection string |
+
+---
 
 ## Prerequisites
 
-- Node.js >= 20
-- pnpm >= 10
-- PostgreSQL (or [Neon](https://neon.tech) cloud DB)
+- **Node.js** >= 20
+- **pnpm** >= 10
+- **PostgreSQL** 15+ (local or [Neon](https://neon.tech) cloud)
+
+---
 
 ## Getting Started
 
 ```bash
-# Install dependencies
+# 1. Clone and install dependencies
+git clone <repo-url> uni-pos
+cd uni-pos
 pnpm install
 
-# Configure environment
+# 2. Configure environment
 cp apps/backend/.env.example apps/backend/.env.local
-# Edit .env.local with your database URL, JWT secret, etc.
+# Edit .env.local — set DATABASE_URL, JWT_SECRET, admin credentials
 
-# Run database migrations
-pnpm dev:backend  # starts the backend first
-# In a separate terminal:
+# 3. Run database migrations
 cd apps/backend
 npx typeorm-ts-node-commonjs migration:run -d src/database/data-source.ts
 
-# Seed admin user
+# 4. Seed the admin user
 npx ts-node src/database/seeds/seed-admin.ts
+
+# 5. Start the backend
+cd ../..
+pnpm dev:backend
 ```
 
 ## Development
 
 ```bash
-# Start backend API (port 3000)
+# Backend API — http://localhost:3000
 pnpm dev:backend
 
-# Start admin dashboard
+# Admin dashboard — http://localhost:3001
 pnpm dev:admin
 
-# Start POS desktop app
+# POS desktop app
 pnpm dev:pos
+
+# Build all apps
+pnpm build
+
+# Lint all apps
+pnpm lint
 ```
 
-## API Documentation
+---
 
-Swagger UI available at [http://localhost:3000/docs](http://localhost:3000/docs) when the backend is running.
+## API Reference
 
-All endpoints are prefixed with `/api/v1` and require Bearer token authentication (except login).
+Swagger UI: [http://localhost:3000/docs](http://localhost:3000/docs)
 
-### Key Modules
+All endpoints are prefixed with `/api/v1` and require `Authorization: Bearer <token>` (except login).
 
-| Module | Endpoints | Description |
-|--------|-----------|-------------|
-| Auth | `POST /auth/login` | JWT authentication |
-| Products | CRUD `/products` | Product catalog management |
-| Categories | CRUD `/categories` | Product categorization |
-| Tax Groups | CRUD `/tax-groups` | Tax group definitions |
-| Tax Configs | CRUD `/tax-configs` | Per-branch tax rates (inclusive/exclusive) |
-| Discounts | CRUD `/discount-presets` | Discount presets with branch assignment |
-| Inventory | `/inventory` | Stock-in, adjustments, balances, movements |
-| Orders | CRUD `/orders` | Order lifecycle (draft → complete → cancel) |
-| Checkout | `POST /orders/:id/complete`, `/cancel` | Atomic checkout orchestration |
-| Payments | `POST /payments` | Payment recording (cash, card, digital) |
+### Endpoints Overview
+
+| Module | Method | Endpoint | Description |
+|--------|--------|----------|-------------|
+| **Auth** | POST | `/auth/login` | Authenticate and receive JWT |
+| **Products** | GET | `/products` | List products (filterable by category, status) |
+| | POST | `/products` | Create a new product |
+| | PATCH | `/products/:id` | Update product details |
+| | DELETE | `/products/:id` | Archive a product |
+| **Categories** | GET | `/categories` | List categories |
+| | POST | `/categories` | Create a category |
+| | PATCH | `/categories/:id` | Update a category |
+| | DELETE | `/categories/:id` | Archive a category |
+| **Tax Groups** | GET | `/tax-groups` | List tax groups |
+| | POST | `/tax-groups` | Create a tax group |
+| | PATCH | `/tax-groups/:id` | Update a tax group |
+| | DELETE | `/tax-groups/:id` | Archive a tax group |
+| **Tax Configs** | GET | `/tax-configs?branch_id=` | List tax configs for a branch |
+| | POST | `/tax-configs` | Create a tax config |
+| | PATCH | `/tax-configs/:id` | Update a tax config |
+| | DELETE | `/tax-configs/:id` | Archive a tax config |
+| **Discounts** | GET | `/discount-presets` | List discount presets |
+| | POST | `/discount-presets` | Create a discount preset |
+| | PATCH | `/discount-presets/:id` | Update a discount preset |
+| | DELETE | `/discount-presets/:id` | Archive a discount preset |
+| | PUT | `/discount-presets/:id/branches` | Assign branches to a preset |
+| **Inventory** | GET | `/inventory/balances` | List stock balances |
+| | GET | `/inventory/movements` | List inventory movements |
+| | POST | `/inventory/stock-in` | Record stock receipt |
+| | POST | `/inventory/adjustments` | Record stock adjustment |
+| | PATCH | `/inventory/config/:productId` | Update branch-product config |
+| **Orders** | GET | `/orders` | List orders (filterable by status, date) |
+| | GET | `/orders/:id` | Get order with items, taxes, discounts |
+| | POST | `/orders` | Create a draft order |
+| | POST | `/orders/:id/items` | Add item to draft order |
+| | PATCH | `/orders/:id/items/:itemId` | Update order item quantity |
+| | DELETE | `/orders/:id/items/:itemId` | Remove item from draft order |
+| | POST | `/orders/:id/discounts` | Apply discount to order |
+| | DELETE | `/orders/:id/discounts/:discountId` | Remove discount from order |
+| **Checkout** | POST | `/orders/:id/complete` | Complete order (atomic checkout) |
+| | POST | `/orders/:id/cancel` | Cancel order with reason |
+| **Payments** | GET | `/payments` | List payments for an order |
+
+---
 
 ## Environment Variables
 
-See `apps/backend/.env.example` for all required variables:
+| Variable | Required | Default | Description |
+|----------|----------|---------|-------------|
+| `DATABASE_URL` | Yes | — | PostgreSQL connection string (pooled/Neon) |
+| `DATABASE_URL_DIRECT` | No | — | Direct connection string (for migrations) |
+| `JWT_SECRET` | Yes | — | Secret key for signing JWT tokens |
+| `JWT_EXPIRES_IN` | No | `1d` | JWT token expiration duration |
+| `PORT` | No | `3000` | API server port |
+| `NODE_ENV` | No | `development` | Environment mode |
+| `ADMIN_EMAIL` | Yes* | — | Initial admin user email (*required for seeding) |
+| `ADMIN_PASSWORD` | Yes* | — | Initial admin user password (*required for seeding) |
+| `ADMIN_FULL_NAME` | Yes* | — | Initial admin user display name |
+| `ADMIN_ORGANIZATION_NAME` | Yes* | — | Organization name for seed data |
+| `ADMIN_TENANT_NAME` | Yes* | — | Tenant name for seed data |
+| `ADMIN_TENANT_SLUG` | Yes* | — | Tenant slug for seed data |
+| `ADMIN_BRANCH_NAME` | Yes* | — | Default branch name |
+| `ADMIN_BRANCH_CODE` | Yes* | — | Default branch code (used in order numbers) |
 
-| Variable | Description |
-|----------|-------------|
-| `DATABASE_URL` | PostgreSQL connection string (pooled) |
-| `DATABASE_URL_DIRECT` | Direct connection (for migrations) |
-| `JWT_SECRET` | Secret key for signing JWTs |
-| `JWT_EXPIRES_IN` | Token expiration (default: `1d`) |
-| `PORT` | API server port (default: `3000`) |
+---
 
 ## Project Structure
 
 ```
 uni-pos/
 ├── apps/
-│   ├── backend/          # NestJS API
-│   │   └── src/
-│   │       ├── auth/           # JWT authentication
-│   │       ├── audit/          # Event-driven audit logging
-│   │       ├── categories/     # Product categories
-│   │       ├── checkout/       # Checkout orchestrator
-│   │       ├── common/         # Shared utilities & events
-│   │       ├── database/       # TypeORM config, migrations, seeds
-│   │       ├── discounts/      # Discount presets & rules
-│   │       ├── inventory/      # Stock management
-│   │       ├── orders/         # Order lifecycle
-│   │       ├── payments/       # Payment processing
-│   │       ├── products/       # Product catalog
-│   │       ├── tax/            # Tax groups & configs
-│   │       └── users/          # User management
-│   ├── admin/            # Next.js admin dashboard
-│   └── pos/              # Electron POS client
-└── package.json          # Monorepo root
+│   ├── backend/                    # NestJS REST API
+│   │   ├── src/
+│   │   │   ├── auth/               # JWT login, guards, decorators
+│   │   │   ├── audit/              # Event-driven audit log persistence
+│   │   │   ├── categories/         # Product category CRUD
+│   │   │   ├── checkout/           # Atomic checkout orchestrator
+│   │   │   ├── common/
+│   │   │   │   ├── events/         # Domain event classes (6 event types)
+│   │   │   │   └── transformers/   # Decimal transformer for numeric columns
+│   │   │   ├── database/
+│   │   │   │   ├── entities/       # Org, Tenant, Branch core entities
+│   │   │   │   ├── migrations/     # TypeORM migrations (4 migration files)
+│   │   │   │   └── seeds/          # Admin user + org seeding script
+│   │   │   ├── discounts/          # Discount presets, branch assignment, combinability
+│   │   │   ├── inventory/          # Stock-in, adjustments, balances, movements, batches
+│   │   │   ├── orders/             # Order CRUD, items, taxes, discounts, number sequences
+│   │   │   ├── payments/           # Payment recording and validation
+│   │   │   ├── products/           # Product catalog with tax group linkage
+│   │   │   ├── tax/                # Tax groups, tax configs, rate resolution
+│   │   │   └── users/              # User entity and service
+│   │   ├── test/                   # E2E test setup
+│   │   ├── .env.example            # Environment template
+│   │   └── package.json
+│   ├── admin/                      # Next.js admin dashboard
+│   │   ├── src/
+│   │   ├── .env.example
+│   │   └── package.json
+│   └── pos/                        # Electron POS desktop client
+│       ├── src/
+│       └── package.json
+├── .gitignore
+├── package.json                    # Monorepo root (pnpm workspaces)
+├── pnpm-workspace.yaml
+└── pnpm-lock.yaml
 ```
+
+---
+
+## Database Schema
+
+The backend uses **4 migration files** creating the following table groups:
+
+| Migration | Tables Created |
+|-----------|---------------|
+| `InitSchema` | organizations, tenants, branches, users, categories, products |
+| `AddTaxAndDiscounts` | tax_groups, tax_configs, discount_presets, discount_preset_branches |
+| `AddInventory` | inventory_batches, inventory_movements, inventory_balances, branch_product_configs |
+| `AddOrdersAndPayments` | orders, order_items, order_item_taxes, order_discounts, order_number_sequences, payments |
+| `AddAuditLogs` | audit_logs (with GIN index on JSONB payload) |
+
+Key design decisions:
+- All financial columns use `numeric(12,2)` with decimal transformer
+- Immutable entities (movements, batches, item taxes) have no `updated_at`
+- Partial indexes on status columns for query performance
+- CHECK constraint on `inventory_balances.on_hand_qty >= 0`
+- All FK relationships use `onDelete: 'RESTRICT'` for financial data integrity
+
+---
 
 ## License
 
