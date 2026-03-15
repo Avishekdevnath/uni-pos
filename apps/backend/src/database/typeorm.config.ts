@@ -1,0 +1,94 @@
+import { existsSync } from 'node:fs';
+import { resolve } from 'node:path';
+import { DataSourceOptions } from 'typeorm';
+import { BranchEntity, OrganizationEntity, TenantEntity } from './entities';
+import { CategoryEntity } from '../categories/entities/category.entity';
+import { ProductEntity } from '../products/entities/product.entity';
+import { UserEntity } from '../users/entities/user.entity/user.entity';
+import { TaxGroupEntity } from '../tax/entities/tax-group.entity';
+import { TaxConfigEntity } from '../tax/entities/tax-config.entity';
+import { DiscountPresetEntity } from '../discounts/entities/discount-preset.entity';
+import { DiscountPresetBranchEntity } from '../discounts/entities/discount-preset-branch.entity';
+import { InventoryBatchEntity } from '../inventory/entities/inventory-batch.entity';
+import { InventoryMovementEntity } from '../inventory/entities/inventory-movement.entity';
+import { InventoryBalanceEntity } from '../inventory/entities/inventory-balance.entity';
+import { BranchProductConfigEntity } from '../inventory/entities/branch-product-config.entity';
+import { OrderEntity } from '../orders/entities/order.entity';
+import { OrderItemEntity } from '../orders/entities/order-item.entity';
+import { OrderItemTaxEntity } from '../orders/entities/order-item-tax.entity';
+import { OrderDiscountEntity } from '../orders/entities/order-discount.entity';
+import { OrderNumberSequenceEntity } from '../orders/entities/order-number-sequence.entity';
+import { PaymentEntity } from '../payments/entities/payment.entity';
+import { AuditLogEntity } from '../audit/entities/audit-log.entity';
+
+for (const fileName of ['.env.local', '.env']) {
+  const filePath = resolve(process.cwd(), fileName);
+
+  if (existsSync(filePath)) {
+    process.loadEnvFile(filePath);
+  }
+}
+
+const DATABASE_URL_DIRECT = process.env.DATABASE_URL_DIRECT;
+const DATABASE_URL = process.env.DATABASE_URL;
+
+function resolveDatabaseUrl(): string {
+  const url = DATABASE_URL_DIRECT ?? DATABASE_URL;
+
+  if (!url) {
+    throw new Error('DATABASE_URL or DATABASE_URL_DIRECT must be set');
+  }
+
+  return url;
+}
+
+function shouldEnableSsl(url: string): boolean {
+  return url.includes('sslmode=require') || url.includes('neon.tech');
+}
+
+export function createTypeOrmOptions(): DataSourceOptions {
+  return createBaseTypeOrmOptions(false);
+}
+
+export function createTypeOrmCliOptions(): DataSourceOptions {
+  return createBaseTypeOrmOptions(true);
+}
+
+function createBaseTypeOrmOptions(includeMigrations: boolean): DataSourceOptions {
+  const url = resolveDatabaseUrl();
+
+  return {
+    type: 'postgres',
+    url,
+    ssl: shouldEnableSsl(url) ? { rejectUnauthorized: false } : false,
+    synchronize: false,
+    entities: [
+      OrganizationEntity,
+      TenantEntity,
+      BranchEntity,
+      CategoryEntity,
+      ProductEntity,
+      UserEntity,
+      TaxGroupEntity,
+      TaxConfigEntity,
+      DiscountPresetEntity,
+      DiscountPresetBranchEntity,
+      InventoryBatchEntity,
+      InventoryMovementEntity,
+      InventoryBalanceEntity,
+      BranchProductConfigEntity,
+      OrderEntity,
+      OrderItemEntity,
+      OrderItemTaxEntity,
+      OrderDiscountEntity,
+      OrderNumberSequenceEntity,
+      PaymentEntity,
+      AuditLogEntity,
+    ],
+    ...(includeMigrations
+      ? {
+          migrations: ['src/database/migrations/*.ts'],
+        }
+      : {}),
+  };
+}
