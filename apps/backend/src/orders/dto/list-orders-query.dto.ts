@@ -9,6 +9,10 @@ export class ListOrdersQueryDto {
   status?: string;
 
   @IsOptional()
+  @IsString()
+  search?: string;
+
+  @IsOptional()
   @IsDateString()
   from?: string;
 

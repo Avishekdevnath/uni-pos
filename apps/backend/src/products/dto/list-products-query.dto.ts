@@ -1,6 +1,6 @@
 import { ApiPropertyOptional } from '@nestjs/swagger';
 import { Type } from 'class-transformer';
-import { IsOptional, IsString, IsUUID, Max, Min } from 'class-validator';
+import { IsIn, IsOptional, IsString, IsUUID, Max, Min } from 'class-validator';
 
 export class ListProductsQueryDto {
   @ApiPropertyOptional({
@@ -9,6 +9,20 @@ export class ListProductsQueryDto {
   @IsOptional()
   @IsUUID()
   branch_id?: string;
+
+  @ApiPropertyOptional({
+    format: 'uuid',
+  })
+  @IsOptional()
+  @IsUUID()
+  category_id?: string;
+
+  @ApiPropertyOptional({
+    enum: ['active', 'inactive', 'draft'],
+  })
+  @IsOptional()
+  @IsIn(['active', 'inactive', 'draft'])
+  status?: string;
 
   @ApiPropertyOptional({
     example: 'cola',

@@ -1,6 +1,10 @@
 import type { Metadata } from "next";
 import { IBM_Plex_Mono, Space_Grotesk } from "next/font/google";
 import "./globals.css";
+import { QueryProvider } from "@/providers/query-provider";
+import { AuthProvider } from "@/providers/auth-provider";
+import { BranchProvider } from "@/providers/branch-provider";
+import { Toaster } from "@/components/ui/sonner";
 
 const spaceGrotesk = Space_Grotesk({
   variable: "--font-space-grotesk",
@@ -25,10 +29,15 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en">
-      <body
-        className={`${spaceGrotesk.variable} ${ibmPlexMono.variable} antialiased`}
-      >
-        {children}
+      <body className={`${spaceGrotesk.variable} ${ibmPlexMono.variable} antialiased`}>
+        <QueryProvider>
+          <AuthProvider>
+            <BranchProvider>
+              {children}
+            </BranchProvider>
+          </AuthProvider>
+        </QueryProvider>
+        <Toaster />
       </body>
     </html>
   );

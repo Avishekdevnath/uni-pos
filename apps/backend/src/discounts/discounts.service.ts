@@ -36,16 +36,21 @@ export class DiscountsService {
 
     const qb = this.presetRepository
       .createQueryBuilder('preset')
-      .where('preset.tenant_id = :tenantId', { tenantId })
-      .andWhere('preset.status = :status', { status: 'active' })
-      .andWhere(
-        '(preset.valid_from IS NULL OR preset.valid_from <= :now)',
-        { now },
-      )
-      .andWhere(
-        '(preset.valid_until IS NULL OR preset.valid_until >= :now)',
-        { now },
-      );
+      .where('preset.tenant_id = :tenantId', { tenantId });
+
+    if (query.status) {
+      qb.andWhere('preset.status = :status', { status: query.status });
+    } else {
+      qb.andWhere('preset.status = :status', { status: 'active' })
+        .andWhere(
+          '(preset.valid_from IS NULL OR preset.valid_from <= :now)',
+          { now },
+        )
+        .andWhere(
+          '(preset.valid_until IS NULL OR preset.valid_until >= :now)',
+          { now },
+        );
+    }
 
     if (query.branch_id) {
       qb.andWhere(
@@ -66,7 +71,11 @@ export class DiscountsService {
       qb.andWhere('preset.scope = :scope', { scope: query.scope });
     }
 
-    return qb.orderBy('preset.created_at', 'DESC').getMany();
+    qb.orderBy('preset.created_at', 'DESC')
+      .skip((query.page - 1) * query.page_size)
+      .take(query.page_size);
+
+    return qb.getMany();
   }
 
   async create(

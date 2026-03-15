@@ -1,0 +1,26 @@
+'use client';
+import { useAuth } from '@/hooks/use-auth';
+import { useRouter } from 'next/navigation';
+import { useEffect } from 'react';
+import { AppShell } from '@/components/layout/app-shell';
+
+export default function DashboardLayout({ children }: { children: React.ReactNode }) {
+  const { isAuthenticated, isLoading } = useAuth();
+  const router = useRouter();
+
+  useEffect(() => {
+    if (!isLoading && !isAuthenticated) router.push('/login');
+  }, [isLoading, isAuthenticated, router]);
+
+  if (isLoading) {
+    return (
+      <div className="flex h-screen items-center justify-center">
+        <span className="text-muted-foreground">Loading…</span>
+      </div>
+    );
+  }
+
+  if (!isAuthenticated) return null;
+
+  return <AppShell>{children}</AppShell>;
+}

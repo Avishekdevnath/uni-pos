@@ -23,6 +23,18 @@ export class ProductsService {
       .createQueryBuilder('product')
       .where('product.tenant_id = :tenantId', { tenantId });
 
+    if (query.category_id) {
+      queryBuilder.andWhere('product.category_id = :categoryId', {
+        categoryId: query.category_id,
+      });
+    }
+
+    if (query.status) {
+      queryBuilder.andWhere('product.status = :status', {
+        status: query.status,
+      });
+    }
+
     if (query.barcode) {
       queryBuilder.andWhere('product.barcode = :barcode', {
         barcode: query.barcode,
@@ -69,6 +81,7 @@ export class ProductsService {
     const product = this.productsRepository.create({
       tenantId,
       categoryId: dto.category_id ?? null,
+      taxGroupId: dto.tax_group_id ?? null,
       name: dto.name,
       sku: dto.sku ?? null,
       barcode: dto.barcode ?? null,
@@ -106,6 +119,10 @@ export class ProductsService {
       }
 
       product.categoryId = dto.category_id ?? null;
+    }
+
+    if (dto.tax_group_id !== undefined) {
+      product.taxGroupId = dto.tax_group_id ?? null;
     }
 
     if (dto.name !== undefined) {

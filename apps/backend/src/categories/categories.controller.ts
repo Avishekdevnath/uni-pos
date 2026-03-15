@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Param, Patch, Post, Req, UseGuards } from '@nestjs/common';
+import { Body, Controller, Delete, Get, Param, ParseUUIDPipe, Patch, Post, Req, UseGuards } from '@nestjs/common';
 import {
   ApiBearerAuth,
   ApiOkResponse,
@@ -56,6 +56,20 @@ export class CategoriesController {
     return {
       status: 'success',
       data: await this.categoriesService.update(request.user!.tenantId, id, dto),
+    };
+  }
+
+  @Delete(':id')
+  @ApiOperation({ summary: 'Archive a category (soft delete)' })
+  @ApiParam({ name: 'id', format: 'uuid' })
+  @ApiOkResponse({ description: 'Category archived successfully' })
+  async archive(
+    @Req() request: RequestWithUser,
+    @Param('id', ParseUUIDPipe) id: string,
+  ) {
+    return {
+      status: 'success',
+      data: await this.categoriesService.archive(request.user!.tenantId, id),
     };
   }
 }

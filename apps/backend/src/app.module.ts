@@ -14,7 +14,9 @@ import { InventoryModule } from './inventory/inventory.module';
 import { OrdersModule } from './orders/orders.module';
 import { PaymentsModule } from './payments/payments.module';
 import { AuditModule } from './audit/audit.module';
+import { BranchesModule } from './branches/branches.module';
 import { CheckoutModule } from './checkout/checkout.module';
+import { StatsModule } from './stats/stats.module';
 
 @Module({
   imports: [
@@ -34,7 +36,9 @@ import { CheckoutModule } from './checkout/checkout.module';
     OrdersModule,
     PaymentsModule,
     AuditModule,
+    BranchesModule,
     CheckoutModule,
+    StatsModule,
   ],
   controllers: [AppController],
   providers: [AppService],

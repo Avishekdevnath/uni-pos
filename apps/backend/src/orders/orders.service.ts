@@ -434,6 +434,10 @@ export class OrdersService {
       qb.andWhere('order.status = :status', { status: query.status });
     }
 
+    if (query.search) {
+      qb.andWhere('order.orderNumber ILIKE :search', { search: `%${query.search}%` });
+    }
+
     if (query.from) {
       qb.andWhere('order.createdAt >= :from', { from: new Date(query.from) });
     }

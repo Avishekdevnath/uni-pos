@@ -1,5 +1,5 @@
-import { AdminConsole } from "@/components/admin-console";
+import { redirect } from 'next/navigation';
 
-export default function Home() {
-  return <AdminConsole />;
+export default function RootPage() {
+  redirect('/dashboard');
 }

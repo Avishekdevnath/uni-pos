@@ -39,6 +39,13 @@ export class CreateProductDto {
   @IsUUID()
   category_id?: string;
 
+  @ApiPropertyOptional({
+    format: 'uuid',
+  })
+  @IsOptional()
+  @IsUUID()
+  tax_group_id?: string;
+
   @ApiProperty({
     example: 50,
   })

@@ -53,6 +53,12 @@ export class CategoriesService {
     return this.categoriesRepository.save(category);
   }
 
+  async archive(tenantId: string, id: string): Promise<CategoryEntity> {
+    const category = await this.ensureCategoryExists(tenantId, id);
+    category.status = 'inactive';
+    return this.categoriesRepository.save(category);
+  }
+
   async findById(tenantId: string, id: string): Promise<CategoryEntity | null> {
     return this.categoriesRepository.findOne({
       where: { tenantId, id },

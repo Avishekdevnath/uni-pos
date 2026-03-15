@@ -72,9 +72,13 @@ export class TaxService {
 
   // --- Tax Config CRUD ---
 
-  async listConfigs(tenantId: string, branchId: string): Promise<TaxConfigEntity[]> {
+  async listConfigs(tenantId: string, branchId: string, taxGroupId?: string): Promise<TaxConfigEntity[]> {
+    const where: Record<string, unknown> = { tenantId, branchId };
+    if (taxGroupId) {
+      where['taxGroupId'] = taxGroupId;
+    }
     return this.taxConfigRepository.find({
-      where: { tenantId, branchId },
+      where,
       relations: ['taxGroup'],
       order: { sortOrder: 'ASC' },
     });

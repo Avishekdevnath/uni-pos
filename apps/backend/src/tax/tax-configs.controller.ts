@@ -39,16 +39,19 @@ export class TaxConfigsController {
   @Get()
   @ApiOperation({ summary: 'List tax configs for the authenticated tenant' })
   @ApiQuery({ name: 'branch_id', required: false, type: String })
+  @ApiQuery({ name: 'tax_group_id', required: false, type: String })
   @ApiOkResponse({ description: 'Tax config list returned successfully' })
   async list(
     @Req() request: RequestWithUser,
     @Query('branch_id') branchId: string,
+    @Query('tax_group_id') taxGroupId?: string,
   ) {
     return {
       status: 'success',
       data: await this.taxService.listConfigs(
         request.user!.tenantId,
         branchId,
+        taxGroupId,
       ),
     };
   }

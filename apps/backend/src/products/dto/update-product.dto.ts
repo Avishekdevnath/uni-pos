@@ -42,6 +42,14 @@ export class UpdateProductDto {
   category_id?: string | null;
 
   @ApiPropertyOptional({
+    format: 'uuid',
+    nullable: true,
+  })
+  @IsOptional()
+  @IsUUID()
+  tax_group_id?: string | null;
+
+  @ApiPropertyOptional({
     example: 60,
   })
   @IsOptional()

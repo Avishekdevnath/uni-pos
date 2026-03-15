@@ -48,17 +48,37 @@ export class InventoryService {
     tenantId: string,
     query: ListBalancesQueryDto,
   ): Promise<InventoryBalanceEntity[]> {
-    const where: Record<string, unknown> = {
-      tenantId,
-      branchId: query.branch_id,
-    };
+    const qb = this.balanceRepo
+      .createQueryBuilder('bal')
+      .leftJoinAndSelect('bal.product', 'product')
+      .where('bal.tenant_id = :tenantId', { tenantId })
+      .andWhere('bal.branch_id = :branchId', { branchId: query.branch_id });
+
     if (query.product_id) {
-      where['productId'] = query.product_id;
+      qb.andWhere('bal.product_id = :productId', { productId: query.product_id });
     }
-    return this.balanceRepo.find({
-      where,
-      relations: ['product'],
-    });
+
+    if (query.search) {
+      qb.andWhere('(product.name ILIKE :search OR product.sku ILIKE :search)', {
+        search: `%${query.search}%`,
+      });
+    }
+
+    if (query.low_stock) {
+      qb.innerJoin(
+        'branch_product_configs',
+        'bpc',
+        'bpc.tenant_id = bal.tenant_id AND bpc.branch_id = bal.branch_id AND bpc.product_id = bal.product_id',
+      )
+        .andWhere('bpc.low_stock_threshold IS NOT NULL')
+        .andWhere('bal.on_hand_qty <= bpc.low_stock_threshold');
+    }
+
+    qb.orderBy('product.name', 'ASC')
+      .skip((query.page - 1) * query.page_size)
+      .take(query.page_size);
+
+    return qb.getMany();
   }
 
   async listMovements(
@@ -85,6 +105,8 @@ export class InventoryService {
     if (query.to) {
       qb.andWhere('m.createdAt <= :to', { to: query.to });
     }
+
+    qb.skip((query.page - 1) * query.page_size).take(query.page_size);
 
     return qb.getMany();
   }
