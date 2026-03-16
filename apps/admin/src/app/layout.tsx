@@ -29,7 +29,7 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en">
-      <body className={`${spaceGrotesk.variable} ${ibmPlexMono.variable} antialiased`}>
+      <body className={`${spaceGrotesk.variable} ${ibmPlexMono.variable} antialiased`} suppressHydrationWarning>
         <QueryProvider>
           <AuthProvider>
             <BranchProvider>
