@@ -20,6 +20,17 @@ import { OrderDiscountEntity } from '../orders/entities/order-discount.entity';
 import { OrderNumberSequenceEntity } from '../orders/entities/order-number-sequence.entity';
 import { PaymentEntity } from '../payments/entities/payment.entity';
 import { AuditLogEntity } from '../audit/entities/audit-log.entity';
+import { PermissionEntity } from '../rbac/entities/permission.entity';
+import { RoleEntity } from '../rbac/entities/role.entity';
+import { RolePermissionEntity } from '../rbac/entities/role-permission.entity';
+import { PlatformAdminEntity } from '../platform/entities/platform-admin.entity';
+import { ReceiptTokenEntity } from '../receipts/entities/receipt-token.entity';
+import { UserBranchEntity } from '../users/entities/user-branch.entity';
+import { BranchGroupEntity } from '../branch-groups/entities/branch-group.entity';
+import { BranchGroupMemberEntity } from '../branch-groups/entities/branch-group-member.entity';
+import { BranchProductPriceEntity } from '../pricing/entities/branch-product-price.entity';
+import { StockTransferEntity } from '../transfers/entities/stock-transfer.entity';
+import { StockTransferItemEntity } from '../transfers/entities/stock-transfer-item.entity';
 
 for (const fileName of ['.env.local', '.env']) {
   const filePath = resolve(process.cwd(), fileName);
@@ -83,6 +94,17 @@ function createBaseTypeOrmOptions(includeMigrations: boolean): DataSourceOptions
       OrderNumberSequenceEntity,
       PaymentEntity,
       AuditLogEntity,
+      PermissionEntity,
+      RoleEntity,
+      RolePermissionEntity,
+      PlatformAdminEntity,
+      ReceiptTokenEntity,
+      UserBranchEntity,
+      BranchGroupEntity,
+      BranchGroupMemberEntity,
+      BranchProductPriceEntity,
+      StockTransferEntity,
+      StockTransferItemEntity,
     ],
     ...(includeMigrations
       ? {
