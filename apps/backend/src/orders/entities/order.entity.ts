@@ -18,6 +18,7 @@ import { OrderDiscountEntity } from './order-discount.entity';
 
 @Entity({ name: 'orders' })
 @Index('orders_tenant_branch_status_created_index', ['tenantId', 'branchId', 'status', 'createdAt'])
+@Index('idx_orders_branch_creator_date', ['branchId', 'createdBy', 'createdAt'])
 export class OrderEntity {
   @PrimaryGeneratedColumn('uuid')
   id!: string;
@@ -35,6 +36,13 @@ export class OrderEntity {
   @ManyToOne(() => BranchEntity, { onDelete: 'RESTRICT' })
   @JoinColumn({ name: 'branch_id' })
   branch!: BranchEntity;
+
+  @Column({ name: 'created_by', type: 'uuid' })
+  createdBy!: string;
+
+  @ManyToOne(() => UserEntity)
+  @JoinColumn({ name: 'created_by' })
+  creator!: UserEntity;
 
   @Column({ name: 'customer_id', type: 'uuid', nullable: true })
   customerId!: string | null;
