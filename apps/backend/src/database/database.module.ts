@@ -1,7 +1,7 @@
 import { Module } from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { TypeOrmModule } from '@nestjs/typeorm';
-import { BranchEntity, OrganizationEntity, TenantEntity } from './entities';
+import { BranchEntity, TenantEntity } from './entities';
 import { CategoryEntity } from '../categories/entities/category.entity';
 import { createTypeOrmOptions } from './typeorm.config';
 import { ProductEntity } from '../products/entities/product.entity';
@@ -32,7 +32,6 @@ import { AuditLogEntity } from '../audit/entities/audit-log.entity';
           return {
             type: 'sqljs' as const,
             entities: [
-              OrganizationEntity,
               TenantEntity,
               BranchEntity,
               CategoryEntity,

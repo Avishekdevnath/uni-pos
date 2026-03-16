@@ -1,7 +1,7 @@
 import { existsSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { DataSourceOptions } from 'typeorm';
-import { BranchEntity, OrganizationEntity, TenantEntity } from './entities';
+import { BranchEntity, TenantEntity } from './entities';
 import { CategoryEntity } from '../categories/entities/category.entity';
 import { ProductEntity } from '../products/entities/product.entity';
 import { UserEntity } from '../users/entities/user.entity/user.entity';
@@ -63,7 +63,6 @@ function createBaseTypeOrmOptions(includeMigrations: boolean): DataSourceOptions
     ssl: shouldEnableSsl(url) ? { rejectUnauthorized: false } : false,
     synchronize: false,
     entities: [
-      OrganizationEntity,
       TenantEntity,
       BranchEntity,
       CategoryEntity,
