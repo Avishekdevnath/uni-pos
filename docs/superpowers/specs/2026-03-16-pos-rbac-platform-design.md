@@ -2,7 +2,7 @@
 
 **Date:** 2026-03-16
 **Status:** Draft
-**Scope:** Phase 1 — Online POS, database RBAC, platform admin, self-service signup
+**Scope:** Phase 1 — Online POS, database RBAC, platform admin, self-service signup, Tier 3 chain support
 
 ---
 
@@ -15,20 +15,32 @@ Transform uni-pos from a single-tenant admin back-office into a multi-tenant Saa
 3. **Self-service business signup** — owners register and start immediately
 4. **POS Terminal app** — `apps/pos`, cashier-facing, touch-first, single-page checkout
 5. **Receipt system** — ESC/POS thermal printing (WebUSB) + browser fallback + WhatsApp sharing
-6. **Database reset** — drop all tables/migrations, redesign schema from scratch
+6. **Tier 3 chain support** — branch groups, regional pricing, branch-level access control
+7. **Database reset** — drop all tables/migrations, redesign schema from scratch
+
+### Target Market Tiers
+
+| Tier | Scale | Phase 1 Support |
+|------|-------|-----------------|
+| **Tier 1** | Small shop (1-5 branches) | Fully supported |
+| **Tier 2** | Medium chain (5-50 branches) | Fully supported (branch access control) |
+| **Tier 3** | Large chain (50-500 branches) | Schema ready; branch groups, regional pricing, access control built. Inter-branch transfer, POs, bulk ops deferred to Phase 3 |
+| **Tier 4** | Enterprise (500+) | Not our market (SAP/Oracle territory) |
 
 ### Phase 1 vs Phase 2
 
-| Phase 1 (this sprint) | Phase 2 (later) |
-|---|---|
-| Online POS | Offline POS (IndexedDB + sync) |
-| Cash payment only | Card payment |
-| ESC/POS USB + browser print | Bluetooth printing |
-| WhatsApp receipt sharing | SMS sharing |
-| Anonymous sales | Customer membership + loyalty points |
-| Tenant list + impersonate | Growth metrics, announcements |
-| Manual password sharing | Email service for invites |
-| Hardcoded receipt footer | Custom receipt templates |
+| Phase 1 (this sprint) | Phase 2 (later) | Phase 3 (Tier 3 chains) |
+|---|---|---|
+| Online POS | Offline POS (IndexedDB + sync) | Purchase orders + GRN |
+| Cash payment only | Card payment | Inter-branch stock transfer |
+| ESC/POS USB + browser print | Bluetooth printing | Bulk operations (batch product/branch) |
+| WhatsApp receipt sharing | SMS sharing | Regional reports & analytics |
+| Anonymous sales | Customer membership + loyalty points | Shift management & cash reconciliation |
+| Tenant list + impersonate | Growth metrics, announcements | Refund/return flow |
+| Manual password sharing | Email service for invites | |
+| Hardcoded receipt footer | Custom receipt templates | |
+| Branch groups + regional pricing | | |
+| Branch-level access control | | |
 
 ---
 
@@ -147,6 +159,15 @@ Seeded once. Static. Contains all possible permissions in the system.
 | branches:update | branches | update | Edit branches |
 | audit:read | audit | read | View audit logs |
 | reports:read | reports | read | View reports/dashboard |
+| branch_groups:create | branch_groups | create | Create branch groups/regions |
+| branch_groups:read | branch_groups | read | View branch groups |
+| branch_groups:update | branch_groups | update | Edit branch groups |
+| branch_groups:delete | branch_groups | delete | Delete branch groups |
+| pricing:read | pricing | read | View branch-specific pricing |
+| pricing:update | pricing | update | Set branch-specific prices |
+| transfers:create | transfers | create | Initiate stock transfers (Phase 3) |
+| transfers:read | transfers | read | View stock transfers (Phase 3) |
+| transfers:receive | transfers | receive | Receive stock transfers (Phase 3) |
 
 #### `roles`
 
@@ -188,6 +209,108 @@ Seeded once. Static. Contains all possible permissions in the system.
 - Token generated via nanoid(12), URL-safe
 - Retention: 2 years from creation. `expires_at` column set on creation. Expired tokens return 404 on public endpoint. Cleanup via scheduled job (Phase 2) or manual DB query.
 - One token per order (UNIQUE on order_id)
+
+#### `user_branches` (branch-level access control)
+
+| Column | Type | Constraints |
+|--------|------|-------------|
+| user_id | uuid | FK → users, NOT NULL |
+| branch_id | uuid | FK → branches, NOT NULL |
+
+- Composite PK on (user_id, branch_id)
+- CASCADE delete on user or branch deletion
+- **Access rules:**
+  - No entries for a user → user can access ALL branches (owner/sr.manager — backward compatible)
+  - Has entries → user can ONLY access those branches
+  - POS selling is always locked to `default_branch_id` regardless of user_branches
+  - Admin UI branch selector only shows accessible branches
+  - Services filter queries by accessible branches for data modification
+  - Read-only access to all branches for inventory visibility (a manager can SEE other branch stock but not modify it)
+
+#### `branch_groups` (Tier 3: regional hierarchy)
+
+| Column | Type | Constraints |
+|--------|------|-------------|
+| id | uuid | PK |
+| tenant_id | uuid | FK → tenants, NOT NULL |
+| name | varchar(255) | NOT NULL |
+| parent_id | uuid | FK → branch_groups, nullable |
+| created_at | timestamp | auto |
+| updated_at | timestamp | auto |
+
+- UNIQUE constraint on (tenant_id, name)
+- `parent_id` enables hierarchy: Region → Zone → Area
+- Example: "Dhaka North" (region) → "Gulshan Area" (zone) → branches within
+
+#### `branch_group_members`
+
+| Column | Type | Constraints |
+|--------|------|-------------|
+| branch_group_id | uuid | FK → branch_groups, NOT NULL |
+| branch_id | uuid | FK → branches, NOT NULL |
+
+- Composite PK on (branch_group_id, branch_id)
+- A branch can belong to multiple groups (e.g., "Dhaka North" AND "Premium Stores")
+- CASCADE delete on branch or group deletion
+
+#### `branch_product_prices` (Tier 3: regional pricing)
+
+| Column | Type | Constraints |
+|--------|------|-------------|
+| id | uuid | PK |
+| tenant_id | uuid | FK → tenants, NOT NULL |
+| branch_id | uuid | FK → branches, NOT NULL |
+| product_id | uuid | FK → products, NOT NULL |
+| price | decimal(15,4) | NOT NULL |
+| cost | decimal(15,4) | nullable |
+| created_at | timestamp | auto |
+| updated_at | timestamp | auto |
+
+- UNIQUE constraint on (branch_id, product_id)
+- Overrides `products.price` for a specific branch
+- If no entry exists → fall back to `products.price` (tenant default)
+- `cost` override is optional — falls back to `products.cost`
+
+**POS pricing resolution:**
+```
+1. SELECT price FROM branch_product_prices WHERE branch_id = :bid AND product_id = :pid
+2. If found → use branch-specific price
+3. If not found → use products.price (tenant default)
+```
+
+This is a single query with LEFT JOIN — no performance impact.
+
+#### `stock_transfers` (schema only — built in Phase 3)
+
+| Column | Type | Constraints |
+|--------|------|-------------|
+| id | uuid | PK |
+| tenant_id | uuid | FK → tenants, NOT NULL |
+| transfer_number | varchar(50) | UNIQUE |
+| from_branch_id | uuid | FK → branches, NOT NULL |
+| to_branch_id | uuid | FK → branches, NOT NULL |
+| status | varchar(32) | DEFAULT 'draft' |
+| initiated_by | uuid | FK → users |
+| received_by | uuid | FK → users, nullable |
+| notes | text | nullable |
+| created_at | timestamp | auto |
+| completed_at | timestamp | nullable |
+
+- Status: `draft` → `in_transit` → `received` | `cancelled`
+- **Not built in Phase 1** — table created in migration but no controller/service/UI
+
+#### `stock_transfer_items` (schema only — built in Phase 3)
+
+| Column | Type | Constraints |
+|--------|------|-------------|
+| id | uuid | PK |
+| transfer_id | uuid | FK → stock_transfers, NOT NULL |
+| product_id | uuid | FK → products, NOT NULL |
+| quantity | decimal(15,4) | NOT NULL |
+| received_quantity | decimal(15,4) | nullable |
+
+- `received_quantity` can differ from `quantity` (partial receipt, damage)
+- **Not built in Phase 1**
 
 ### 2.4 Modified Tables
 
@@ -260,6 +383,10 @@ When a tenant is created, 6 system roles are auto-created with these permissions
 | branches:update | ✅ | | | | | |
 | audit:read | ✅ | ✅ | ✅ | | | |
 | reports:read | ✅ | ✅ | ✅ | | | |
+| branch_groups:* | ✅ | read | | | | |
+| pricing:read | ✅ | ✅ | ✅ | | | |
+| pricing:update | ✅ | ✅ | | | | |
+| transfers:* | ✅ | ✅ | create+read | | | |
 
 ---
 
@@ -646,6 +773,13 @@ Left panel (product grid) stays constant. Right panel transitions: CART → CHEC
 
 ### 6.5 Product Entry Methods
 
+**Product pricing in POS:**
+- POS loads products with branch-specific pricing via LEFT JOIN on `branch_product_prices`
+- If `branch_product_prices` row exists for (branch_id, product_id) → use that price
+- Otherwise → use `products.price` (tenant default)
+- Product cards show the resolved price — cashier never sees the fallback logic
+- Backend checkout service uses the same resolution when calculating line totals
+
 **1. Search by name/SKU:**
 - Search input at top of product panel
 - Debounced (300ms), filters product grid live
@@ -951,6 +1085,17 @@ All settings stored in localStorage. Per-browser, per-device.
 | POST | /platform/tenants/:id/impersonate | PlatformJwt | Impersonate tenant owner |
 | GET | /api/v1/receipts/:token | none | Receipt data (JSON) |
 | GET | /receipts/:token | none | Receipt page (HTML) |
+| GET | /branch-groups | Jwt | List branch groups (tree) |
+| POST | /branch-groups | Jwt | Create branch group |
+| PATCH | /branch-groups/:id | Jwt | Update branch group |
+| DELETE | /branch-groups/:id | Jwt | Delete branch group |
+| POST | /branch-groups/:id/members | Jwt | Add branch to group |
+| DELETE | /branch-groups/:id/members/:branchId | Jwt | Remove branch from group |
+| GET | /branches/:id/pricing | Jwt | List branch-specific prices |
+| PUT | /branches/:id/pricing | Jwt | Set/update branch product prices (batch) |
+| DELETE | /branches/:id/pricing/:productId | Jwt | Remove branch price override |
+| GET | /users/:id/branches | Jwt | List user's accessible branches |
+| PUT | /users/:id/branches | Jwt | Set user's branch access list |
 
 ### 8.2 Modified Endpoints
 
@@ -969,6 +1114,9 @@ All settings stored in localStorage. Per-browser, per-device.
 | PlatformModule | PlatformAdminEntity, PlatformAuthController, PlatformTenantsController, PlatformAuthService, PlatformTenantsService |
 | RbacModule | PermissionEntity, RoleEntity, RolePermissionEntity, PermissionGuard, RequirePermission decorator, RbacService |
 | ReceiptsModule | ReceiptTokenEntity, ReceiptsController (public), ReceiptsService |
+| BranchGroupsModule | BranchGroupEntity, BranchGroupMemberEntity, BranchGroupsController, BranchGroupsService |
+| PricingModule | BranchProductPriceEntity, PricingController, PricingService |
+| UserBranchesModule | UserBranchEntity, integrated into UsersController (PUT /users/:id/branches), UserBranchesService |
 
 ---
 
@@ -988,6 +1136,11 @@ All settings stored in localStorage. Per-browser, per-device.
 | /platform/login | Platform admin login |
 | /(platform)/tenants | Tenant list with search, impersonate, create |
 | /(platform)/tenants/[id] | Tenant detail |
+| /(dashboard)/branch-groups | Branch groups tree view with CRUD |
+| /(dashboard)/branches/[id]/pricing | Branch-specific pricing overrides |
+| /(dashboard)/staff | Staff list with role assignment + branch access |
+| /(dashboard)/staff/[id] | Staff detail — edit profile, assign role, set branch access |
+| /(dashboard)/settings | Business settings + change password |
 
 ### 9.3 Modified Pages
 
@@ -1159,7 +1312,35 @@ Tax is computed by the backend checkout service (already implemented):
 - No `must_change_password` flag for Phase 1 — platform admin verbally instructs the owner to change it
 - Owner changes password via `PATCH /auth/password` from admin settings page
 
-### 12.15 Rate Limiting
+### 12.15 Branch Access Enforcement
+
+**Write operations** (stock adjust, settings change, price override):
+- Service checks `user_branches` — if user has entries AND target branch is NOT in the list → 403 Forbidden
+- If user has NO entries in `user_branches` → allowed (owner/sr.manager pattern)
+
+**Read operations** (view inventory, orders, reports):
+- All branches visible for read — a manager at Branch A can SEE Branch B's stock levels
+- This is intentional: enables inventory visibility across the chain ("Branch B has 50 units, request a transfer")
+- Admin UI labels other-branch data as read-only (greyed out actions)
+
+**POS selling:**
+- Always locked to `default_branch_id` — not affected by `user_branches`
+- Stock deducted from `default_branch_id` only
+- Cashier cannot switch branches in POS (must log out and log in to a different branch account)
+
+**Branch selector in admin header:**
+- Shows only accessible branches (filtered by `user_branches`)
+- Owner/sr.manager (no entries) → sees all branches
+- Manager with 3 assigned branches → sees only those 3
+- Data on screen changes when branch is switched
+
+### 12.16 Branch-Specific Pricing Edge Cases
+
+- **Product with no branch price:** Falls back to `products.price` — transparent to cashier
+- **Price updated mid-sale:** Cart shows the price at time of adding to cart. Checkout service re-resolves price from DB — if price changed, the order total reflects the latest price. This is correct behavior (price is locked at checkout, not cart).
+- **Bulk price import:** `PUT /branches/:id/pricing` accepts an array of `{ product_id, price, cost? }` — upserts all in one transaction
+
+### 12.17 Rate Limiting
 
 - `POST /auth/login` and `POST /auth/register` — rate limited to 10 requests per minute per IP (NestJS `@nestjs/throttler`)
 - `POST /platform/auth/login` — rate limited to 5 requests per minute per IP
@@ -1174,10 +1355,12 @@ Tax is computed by the backend checkout service (already implemented):
 1. **JWT separation**: Separate JWT secrets (`JWT_SECRET` and `PLATFORM_JWT_SECRET`) prevent cross-contamination between platform admin and business user tokens
 2. **Privilege escalation**: `staff:assign_role` is owner-only; users cannot assign roles with more permissions than their own
 3. **Tenant isolation**: All business queries scoped by `tenantId` from JWT
-4. **Receipt tokens**: nanoid(12) uses 64-char URL-safe alphabet (A-Za-z0-9_-) = 64^12 ≈ 4.7 × 10^21 combinations, brute force impractical
-5. **Impersonation audit**: All actions during impersonation logged with `impersonated_by`
-6. **WebUSB security**: Requires HTTPS (except localhost), user grants device access explicitly
-7. **Public receipt endpoint**: Read-only, returns only receipt data, no mutation possible
+4. **Branch isolation**: `user_branches` enforces data modification scope; services check branch access on every write operation
+5. **Receipt tokens**: nanoid(12) uses 64-char URL-safe alphabet (A-Za-z0-9_-) = 64^12 ≈ 4.7 × 10^21 combinations, brute force impractical
+6. **Impersonation audit**: All actions during impersonation logged with `impersonated_by`
+7. **WebUSB security**: Requires HTTPS (except localhost), user grants device access explicitly
+8. **Public receipt endpoint**: Read-only, returns only receipt data, no mutation possible
+9. **Branch pricing integrity**: POS resolves price server-side during checkout — frontend price is for display only, backend is authoritative
 
 ---
 
@@ -1312,18 +1495,29 @@ Phase 1 improvement: held carts stored in `sessionStorage` instead of pure compo
 
 ## 17. Not In Scope (Phase 2+)
 
-| Feature | Why deferred |
+### Phase 2 (next sprint)
+
+| Feature | Description |
 |---------|-------------|
-| Offline POS | Significant complexity (IndexedDB, sync, conflict resolution) |
-| Card payment | Cash first, card integration later |
-| Bluetooth printing | USB + browser covers 90% of setups |
-| SMS receipt sharing | Needs SMS gateway (cost), WhatsApp sufficient |
-| Customer membership + loyalty | Anonymous sales for Phase 1 |
-| Platform growth metrics | Just tenant count for now |
-| Announcement system | Direct WhatsApp/phone for now |
-| Email service | Manual onboarding via phone/WhatsApp |
-| Custom receipt templates | Hardcoded layout, configurable footer only |
-| Held carts persistence | sessionStorage for Phase 1, backend-persisted Phase 2 |
-| Refund/return flow | Full return workflow with stock reversal and refund tracking |
+| Offline POS | IndexedDB + sync queue + conflict resolution |
+| Card payment | Payment gateway integration (Stripe, SSLCommerz) |
+| Bluetooth printing | Web Bluetooth API for wireless thermal printers |
+| SMS receipt sharing | SMS gateway integration (Twilio, etc.) |
+| Customer membership + loyalty | Customer database, points ledger, earn/redeem rules |
+| Platform growth metrics | Signups over time, active tenants, revenue dashboard |
+| Announcement system | Push updates to all businesses |
+| Email service | Automated invite/welcome emails |
+| Custom receipt templates | Business owner editable receipt layout |
+| Held carts persistence | Backend-persisted held carts (survive tab close) |
+
+### Phase 3 (Tier 3 chain features)
+
+| Feature | Description |
+|---------|-------------|
+| Inter-branch stock transfer | Transfer stock between branches with shipment tracking (`stock_transfers` table already in schema) |
+| Purchase orders | PO → supplier → GRN → stock-in workflow |
+| Bulk operations | Batch add product to 500 branches, batch price update |
+| Regional reports | Revenue by region/zone/branch group, top/bottom performers |
+| Refund/return flow | Full return with stock reversal and refund tracking |
 | Shift management | Opening float, end-of-day cash count, expected vs actual reconciliation |
 | Edge-rendered receipts | Move public receipt page from backend HTML to Next.js edge for scalability |
