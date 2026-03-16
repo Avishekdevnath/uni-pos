@@ -6,22 +6,13 @@ import {
   JoinColumn,
   ManyToOne,
   PrimaryGeneratedColumn,
-  Unique,
   UpdateDateColumn,
 } from 'typeorm';
 import { BranchEntity } from '../../../database/entities/branch.entity';
 import { TenantEntity } from '../../../database/entities/tenant.entity';
-
-export enum UserRole {
-  OWNER = 'owner',
-  ADMIN = 'admin',
-  MANAGER = 'manager',
-  CASHIER = 'cashier',
-  STAFF = 'staff',
-}
+import { RoleEntity } from '../../../rbac/entities/role.entity';
 
 @Entity({ name: 'users' })
-@Unique('users_tenant_email_unique', ['tenantId', 'email'])
 @Index('users_tenant_id_index', ['tenantId'])
 export class UserEntity {
   @PrimaryGeneratedColumn('uuid')
@@ -41,20 +32,24 @@ export class UserEntity {
   @JoinColumn({ name: 'default_branch_id' })
   defaultBranch!: BranchEntity;
 
+  @Column({ name: 'role_id', type: 'uuid' })
+  roleId!: string;
+
+  @ManyToOne(() => RoleEntity)
+  @JoinColumn({ name: 'role_id' })
+  role!: RoleEntity;
+
   @Column({ name: 'full_name', type: 'varchar', length: 255 })
   fullName!: string;
 
-  @Column({ type: 'varchar', length: 255 })
+  @Column({ type: 'varchar', length: 255, unique: true })
   email!: string;
+
+  @Column({ type: 'varchar', length: 32, nullable: true })
+  phone!: string | null;
 
   @Column({ name: 'password_hash', type: 'varchar', length: 255 })
   passwordHash!: string;
-
-  @Column({
-    type: 'simple-enum',
-    enum: UserRole,
-  })
-  role!: UserRole;
 
   @Column({ type: 'varchar', length: 32, default: 'active' })
   status!: string;
