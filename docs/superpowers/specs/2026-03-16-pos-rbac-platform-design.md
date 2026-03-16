@@ -55,7 +55,7 @@ Transform uni-pos from a single-tenant admin back-office into a multi-tenant Saa
 - New seed script (idempotent — safe to run multiple times):
   1. Seed all permissions (upsert by code)
   2. Create platform admin from env vars (bcrypt hash, cost factor 10, skip if exists)
-  3. Create demo organization + tenant + branch
+  3. Create demo tenant + branch
   4. Create 6 default roles + assign permissions for demo tenant
   5. Create demo owner user assigned to owner role
 
@@ -65,8 +65,7 @@ These tables survive the reset with the same schema:
 
 | Table | Key Columns |
 |-------|-------------|
-| `organizations` | id, name, industry_type, status |
-| `tenants` | id, organization_id, name, slug (unique), default_currency, default_timezone, status |
+| `tenants` | id, name, slug (unique), default_currency, default_timezone, industry_type, status — **`organizations` table merged into `tenants`; `organization_id` FK removed; `industry_type` moved here** |
 | `branches` | id, tenant_id, name, code, address, phone, status |
 | `products` | id, tenant_id, category_id, tax_group_id, name, sku, **barcode** (varchar 128, unique, nullable), unit, price, cost, status |
 | `categories` | id, tenant_id, parent_id, name, status |
@@ -326,7 +325,19 @@ This is a single query with LEFT JOIN — no performance impact.
 - `received_quantity` can differ from `quantity` (partial receipt, damage)
 - **Not built in Phase 1**
 
-### 2.4 Modified Tables
+### 2.4 Dropped Tables
+
+#### `organizations` — REMOVED
+
+Merged into `tenants`. The `organizations` table was always 1:1 with `tenants` — every signup created one org + one tenant. This added a useless join in every tenant-scoped query.
+
+**Migration:**
+- Move `industry_type` column to `tenants`
+- Remove `organization_id` FK from `tenants`
+- Drop `organizations` table and entity
+- Update all services that referenced `Organization` to use `Tenant` directly
+
+### 2.5 Modified Tables
 
 #### `users` — changes
 
@@ -475,11 +486,10 @@ PLATFORM_JWT_SECRET=...   # separate from JWT_SECRET
 ```
 
 Backend creates (in one transaction):
-1. Organization
-2. Tenant (signup_source: 'manual', onboarded_by: platformAdminId)
-3. Default branch ("Main Branch", code: "MAIN")
-4. 6 system roles with default permissions
-5. Owner user with temporary password
+1. Tenant (signup_source: 'manual', onboarded_by: platformAdminId)
+2. Default branch ("Main Branch", code: "MAIN")
+3. 6 system roles with default permissions
+4. Owner user with temporary password
 
 Returns: tenant details + temporary password. Platform admin shares the password manually (phone/WhatsApp).
 
@@ -541,15 +551,14 @@ POST /auth/register
 ```
 
 **One atomic transaction creates:**
-1. Organization `{ name: business_name }`
-2. Tenant `{ name: business_name, slug: auto-generated, signup_source: 'self_service' }`
-3. Branch `{ name: 'Main Branch', code: 'MAIN' }`
-4. 6 system roles with default permission mappings
-5. User `{ fullName: owner_name, email, passwordHash, role_id: owner_role.id }`
+1. Tenant `{ name: business_name, slug: auto-generated, signup_source: 'self_service' }`
+2. Branch `{ name: 'Main Branch', code: 'MAIN' }`
+3. 6 system roles with default permission mappings
+4. User `{ fullName: owner_name, email, passwordHash, role_id: owner_role.id }`
 
 **Returns:** `{ access_token, user }` — owner is logged in immediately.
 
-**Shared tenant bootstrap logic:** The seed script and the registration endpoint both create org → tenant → branch → roles → user. This logic MUST be extracted into a shared `TenantBootstrapService.createTenant()` method to prevent drift. Both the seed script and `POST /auth/register` call the same service. The platform admin's `POST /platform/tenants` also calls this service.
+**Shared tenant bootstrap logic:** The seed script and the registration endpoint both create tenant → branch → roles → user. This logic MUST be extracted into a shared `TenantBootstrapService.createTenant()` method to prevent drift. Both the seed script and `POST /auth/register` call the same service. The platform admin's `POST /platform/tenants` also calls this service.
 
 **Slug generation:**
 - `"Rahim's Super Shop"` → `"rahims-super-shop"`
