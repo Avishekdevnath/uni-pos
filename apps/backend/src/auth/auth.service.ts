@@ -68,9 +68,10 @@ export class AuthService {
       sub: user.id,
       email: user.email,
       fullName: user.fullName,
-      role: user.role,
+      roleId: user.roleId,
       tenantId: user.tenantId,
       defaultBranchId: user.defaultBranchId,
+      isPlatform: false as const,
     };
   }
 
@@ -78,7 +79,7 @@ export class AuthService {
     return {
       id: user.id,
       full_name: user.fullName,
-      role: user.role,
+      role_id: user.roleId,
       tenant_id: user.tenantId,
       default_branch_id: user.defaultBranchId,
     };
