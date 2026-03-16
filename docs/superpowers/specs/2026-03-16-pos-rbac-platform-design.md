@@ -85,7 +85,7 @@ These tables survive the reset with the same schema:
 | `branch_product_configs` | id, tenant_id, branch_id, product_id, low_stock_threshold, is_available |
 | `order_number_sequences` | id, branch_id, sequence_date, last_sequence |
 | `audit_logs` | id, tenant_id, branch_id, actor_id, event_type, entity_type, entity_id, payload (jsonb), occurred_at |
-| `users` | id, tenant_id, default_branch_id, full_name, email (**globally UNIQUE**), phone (varchar 32, nullable), password_hash, status (**role column removed — see 2.4**) |
+| `users` | id, tenant_id, default_branch_id, full_name, email (**globally UNIQUE — changed from per-tenant unique, see 2.4**), phone (varchar 32, nullable — **new column, see 2.4**), password_hash, status (**role column removed — see 2.4**) |
 
 **Note:** `products.barcode` already exists in the schema. POS scanning matches against this field.
 
@@ -114,8 +114,10 @@ Separate from `users`. No `tenant_id`. Created only via seed script (env vars). 
 | resource | varchar(50) | NOT NULL |
 | action | varchar(50) | NOT NULL |
 | description | varchar(255) | |
+| created_at | timestamp | auto |
+| updated_at | timestamp | auto |
 
-Seeded once. Static. Contains all possible permissions in the system.
+Seeded once. Static. Contains all possible permissions in the system. Timestamps for operational debugging ("when was this permission added?").
 
 **Full permissions list:**
 
@@ -191,9 +193,11 @@ Seeded once. Static. Contains all possible permissions in the system.
 |--------|------|-------------|
 | role_id | uuid | FK → roles, NOT NULL |
 | permission_id | uuid | FK → permissions, NOT NULL |
+| created_at | timestamp | auto |
 
 - Composite PK on (role_id, permission_id)
 - CASCADE delete on role deletion
+- `created_at` for audit: "when was this permission granted to this role?"
 
 #### `receipt_tokens`
 
@@ -206,9 +210,10 @@ Seeded once. Static. Contains all possible permissions in the system.
 | expires_at | timestamp | DEFAULT now() + 2 years |
 | created_at | timestamp | auto |
 
-- Token generated via nanoid(12), URL-safe
+- Token generated via nanoid(12), URL-safe. On collision (UNIQUE violation), retry once with new nanoid.
 - Retention: 2 years from creation. `expires_at` column set on creation. Expired tokens return 404 on public endpoint. Cleanup via scheduled job (Phase 2) or manual DB query.
 - One token per order (UNIQUE on order_id)
+- **Indexes:** UNIQUE on `token` (primary lookup), UNIQUE on `order_id` (checkout response), index on `tenant_id` (tenant-scoped cleanup queries)
 
 #### `user_branches` (branch-level access control)
 
@@ -216,9 +221,12 @@ Seeded once. Static. Contains all possible permissions in the system.
 |--------|------|-------------|
 | user_id | uuid | FK → users, NOT NULL |
 | branch_id | uuid | FK → branches, NOT NULL |
+| created_at | timestamp | auto |
 
 - Composite PK on (user_id, branch_id)
 - CASCADE delete on user or branch deletion
+- `created_at` for audit: "when was this user given access to this branch?"
+- **Indexes:** Composite PK covers (user_id, branch_id) lookups. Add index on `branch_id` alone for reverse lookups ("which users have access to this branch?")
 - **Access rules:**
   - No entries for a user → user can access ALL branches (owner/sr.manager — backward compatible)
   - Has entries → user can ONLY access those branches
@@ -240,6 +248,8 @@ Seeded once. Static. Contains all possible permissions in the system.
 
 - UNIQUE constraint on (tenant_id, name)
 - `parent_id` enables hierarchy: Region → Zone → Area
+- **Index:** on `parent_id` for tree traversal queries; on `tenant_id` for tenant-scoped listing
+- Maximum depth: 3 levels (enforced at service layer). Service rejects `parent_id` that would exceed depth 3. Prevents infinite recursion.
 - Example: "Dhaka North" (region) → "Gulshan Area" (zone) → branches within
 
 #### `branch_group_members`
@@ -261,12 +271,15 @@ Seeded once. Static. Contains all possible permissions in the system.
 | tenant_id | uuid | FK → tenants, NOT NULL |
 | branch_id | uuid | FK → branches, NOT NULL |
 | product_id | uuid | FK → products, NOT NULL |
-| price | decimal(15,4) | NOT NULL |
-| cost | decimal(15,4) | nullable |
+| price | numeric(12,2) | NOT NULL |
+| cost | numeric(12,2) | nullable |
 | created_at | timestamp | auto |
 | updated_at | timestamp | auto |
 
-- UNIQUE constraint on (branch_id, product_id)
+- Uses `numeric(12,2)` matching `products.price`/`products.cost` precision — no rounding mismatches on LEFT JOIN
+- UNIQUE constraint on (branch_id, product_id) — also serves as index
+- **Indexes:** on `tenant_id` for tenant-scoped listing ("list all branch prices for this tenant")
+- **ON DELETE:** CASCADE on both `branch_id` and `product_id` FKs — deleting a branch or product removes its price overrides
 - Overrides `products.price` for a specific branch
 - If no entry exists → fall back to `products.price` (tenant default)
 - `cost` override is optional — falls back to `products.cost`
@@ -294,9 +307,10 @@ This is a single query with LEFT JOIN — no performance impact.
 | received_by | uuid | FK → users, nullable |
 | notes | text | nullable |
 | created_at | timestamp | auto |
+| updated_at | timestamp | auto |
 | completed_at | timestamp | nullable |
 
-- Status: `draft` → `in_transit` → `received` | `cancelled`
+- Status: `draft` → `in_transit` → `received` | `cancelled`. `updated_at` tracks last status change.
 - **Not built in Phase 1** — table created in migration but no controller/service/UI
 
 #### `stock_transfer_items` (schema only — built in Phase 3)
@@ -306,8 +320,8 @@ This is a single query with LEFT JOIN — no performance impact.
 | id | uuid | PK |
 | transfer_id | uuid | FK → stock_transfers, NOT NULL |
 | product_id | uuid | FK → products, NOT NULL |
-| quantity | decimal(15,4) | NOT NULL |
-| received_quantity | decimal(15,4) | nullable |
+| quantity | numeric(12,2) | NOT NULL |
+| received_quantity | numeric(12,2) | nullable |
 
 - `received_quantity` can differ from `quantity` (partial receipt, damage)
 - **Not built in Phase 1**
@@ -320,16 +334,18 @@ This is a single query with LEFT JOIN — no performance impact.
 |--------|---------|
 | REMOVE | `role` column (enum) |
 | REMOVE | `users_role_enum` PostgreSQL type |
+| CHANGE | `email` unique constraint: DROP composite `(tenantId, email)`, ADD simple `UNIQUE(email)` — email is now globally unique across all tenants. Prevents multi-tenant login disambiguation. |
 | ADD | `role_id` uuid FK → roles, NOT NULL |
+| ADD | `phone` varchar(32), nullable — for staff contact info |
 
 #### `orders` — changes
 
 | Change | Details |
 |--------|---------|
-| ADD | `created_by` uuid FK → users, nullable |
+| ADD | `created_by` uuid FK → users, NOT NULL — every order must track who created it. Since this is a full DB reset with no legacy data, no migration backfill needed. |
 | ADD | Index on `(branch_id, created_by, created_at)` for POS "my orders today" query |
 
-Used for "my orders" filtering in POS (cashier sees own orders).
+Used for "my orders" filtering in POS (cashier sees own orders). Set from `user.sub` in JWT during `POST /orders`.
 
 #### `tenants` — changes
 
@@ -383,10 +399,17 @@ When a tenant is created, 6 system roles are auto-created with these permissions
 | branches:update | ✅ | | | | | |
 | audit:read | ✅ | ✅ | ✅ | | | |
 | reports:read | ✅ | ✅ | ✅ | | | |
-| branch_groups:* | ✅ | read | | | | |
+| branch_groups:create | ✅ | | | | | |
+| branch_groups:read | ✅ | ✅ | | | | |
+| branch_groups:update | ✅ | | | | | |
+| branch_groups:delete | ✅ | | | | | |
 | pricing:read | ✅ | ✅ | ✅ | | | |
 | pricing:update | ✅ | ✅ | | | | |
-| transfers:* | ✅ | ✅ | create+read | | | |
+| transfers:create | ✅ | ✅ | ✅ | | | |
+| transfers:read | ✅ | ✅ | ✅ | | | |
+| transfers:receive | ✅ | ✅ | | | | |
+
+**Note:** The seed script inserts individual `role_permissions` rows for each permission. No wildcards are stored in the database. Wildcard matching (e.g., `products:*`) is a runtime feature for custom roles created by business owners, not used in default system roles.
 
 ---
 
@@ -464,7 +487,7 @@ Returns: tenant details + temporary password. Platform admin shares the password
 
 1. Platform admin clicks "Login as" on a tenant row → prompted for their password (re-authentication)
 2. `POST /platform/tenants/:id/impersonate` with `{ password }` → backend verifies platform admin password, then finds tenant's owner user
-3. Backend creates 1-hour JWT with owner's identity + `impersonatedBy: platformAdminId`
+3. Backend creates 1-hour JWT with owner's identity + `impersonatedBy: platformAdminId`, **signed with `JWT_SECRET`** (not `PLATFORM_JWT_SECRET`) so that regular `JwtAuthGuard` accepts it — the impersonation token IS a business user token
 4. Audit log: `platform.impersonation.start`
 5. Frontend stores:
    - `uni-pos.platform.access-token` → platform admin's own token (untouched)
@@ -526,6 +549,8 @@ POST /auth/register
 
 **Returns:** `{ access_token, user }` — owner is logged in immediately.
 
+**Shared tenant bootstrap logic:** The seed script and the registration endpoint both create org → tenant → branch → roles → user. This logic MUST be extracted into a shared `TenantBootstrapService.createTenant()` method to prevent drift. Both the seed script and `POST /auth/register` call the same service. The platform admin's `POST /platform/tenants` also calls this service.
+
 **Slug generation:**
 - `"Rahim's Super Shop"` → `"rahims-super-shop"`
 - On unique constraint violation → retry with nanoid(4) suffix: `"rahims-super-shop-x7k2"`
@@ -583,7 +608,9 @@ Accessible from a settings/profile page in the admin app. Needed for manually on
 
 **Caching:** In-memory Map cache keyed by `role_id`, TTL 5 minutes. Invalidated when role permissions are updated via `RbacService.invalidateRoleCache(roleId)`. Avoids per-request DB query for permission resolution.
 
-**Tenant status check:** Also cached in-memory, TTL 60 seconds, keyed by `tenant_id`. A suspended tenant is kicked within 60 seconds max. Combined with permission cache, authenticated requests add ~0ms DB overhead in the common case.
+**Tenant status check (NEW behavior added to JwtAuthGuard):** The existing `JwtAuthGuard` only verifies JWT signature. It must be extended to also check `tenants.status`. Cached in-memory, TTL 60 seconds, keyed by `tenant_id`. A suspended tenant is kicked within 60 seconds max. This is a behavioral change to the core auth guard that affects ALL authenticated endpoints.
+
+Implementation: After JWT validation, the guard calls `RbacService.isTenantActive(tenantId)` which checks the cache first, then DB. If suspended → throw `ForbiddenException('Your business account has been suspended. Contact support.')`.
 
 **JWT payload (business users):**
 
@@ -608,7 +635,9 @@ GET /auth/me
 Returns: {
   user: { sub, email, fullName, tenantId, defaultBranchId },
   role: { id, name, slug },
-  permissions: ['products:create', 'products:read', ...]
+  permissions: ['products:create', 'products:read', ...],
+  branch: { id, name, code },           // default branch details (for POS header display)
+  tenant: { name, defaultCurrency }      // for receipt/display purposes
 }
 ```
 
@@ -674,8 +703,10 @@ Separate from `apps/admin`:
 ### 6.2 Auth & Access
 
 - Same `POST /auth/login` endpoint as admin
-- After login, check permissions: must have `pos:sell`
+- After login, call `GET /auth/me` which returns user + role + permissions + branch name
+- Check permissions: must have `pos:sell`
 - If no `pos:sell` permission → "You don't have POS access" error
+- POS uses branch name from `/auth/me` response for header display — no extra API call needed
 - POS users without admin permissions never see admin UI
 
 ### 6.3 File Structure
@@ -1039,7 +1070,7 @@ GET /api/v1/receipts/:token   → JSON (for POS app's receipt panel)
 }
 ```
 
-**HTML version:** Simple server-rendered HTML with inline CSS. Receipt layout. No JavaScript needed. Works on any phone browser for WhatsApp link previews.
+**HTML version:** Server-rendered HTML using NestJS with raw template literal strings (no templating engine dependency). Inline CSS, no JavaScript. Works on any phone browser for WhatsApp link previews. This is a deliberate simplicity choice — the receipt is a single static page, not worth adding Handlebars/EJS for. Phase 3 moves this to Next.js edge-rendered for scalability.
 
 ### 7.7 Printer Settings Page
 
@@ -1399,7 +1430,27 @@ Tax is computed by the backend checkout service (already implemented):
 | owner_email | required, valid email format, globally unique |
 | owner_phone | optional, string, 7-32 chars |
 
-### 14.5 Error Response Format
+### 14.5 Pagination Standard (all list endpoints)
+
+Offset-based pagination. Query params: `page` (default 1), `pageSize` (default 20, max 100), `search` (optional text search).
+
+**Response envelope:**
+
+```json
+{
+  "data": [...],
+  "meta": {
+    "total": 150,
+    "page": 1,
+    "pageSize": 20,
+    "totalPages": 8
+  }
+}
+```
+
+This matches the existing pagination pattern used in products, orders, and other list endpoints.
+
+### 14.6 Error Response Format
 
 All validation errors return 422 with machine-readable error codes:
 
@@ -1455,7 +1506,15 @@ Add `GET /health` endpoint (excluded from global prefix, no auth):
 - Minimum 8 characters, maximum 128 characters
 - No character complexity requirements (length is the primary defense, per NIST guidelines)
 
-### 15.5 Auth Decision: localStorage Tokens
+### 15.5 CORS Configuration
+
+Backend must accept requests from both frontend origins:
+- `apps/admin` — e.g., `http://localhost:3001` (dev), `https://admin.yourdomain.com` (prod)
+- `apps/pos` — e.g., `http://localhost:3002` (dev), `https://pos.yourdomain.com` (prod)
+
+Configure via `CORS_ORIGINS` env var (comma-separated). Example: `CORS_ORIGINS=http://localhost:3001,http://localhost:3002`
+
+### 15.6 Auth Decision: localStorage Tokens
 
 Tokens stored in localStorage (not httpOnly cookies). Tradeoffs:
 - **Pro:** Simpler implementation, works with same-origin API calls, no CSRF concern
