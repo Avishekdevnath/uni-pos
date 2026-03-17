@@ -3,12 +3,14 @@ import { ConfigModule, ConfigService } from '@nestjs/config';
 import { JwtModule } from '@nestjs/jwt';
 import { AuthController } from './auth.controller';
 import { AuthService } from './auth.service';
+import { RbacModule } from '../rbac/rbac.module';
 import { UsersModule } from '../users/users.module';
 import { JwtAuthGuard } from './guards/jwt-auth.guard';
 
 @Module({
   imports: [
     ConfigModule,
+    RbacModule,
     UsersModule,
     JwtModule.registerAsync({
       imports: [ConfigModule],
