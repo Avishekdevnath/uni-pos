@@ -17,12 +17,10 @@ import {
   ApiUnauthorizedResponse,
 } from '@nestjs/swagger';
 import { Request } from 'express';
-import { hash } from 'bcryptjs';
 import { LoginDto } from './dto/login.dto/login.dto';
 import { RegisterDto } from './dto/register.dto';
 import { ChangePasswordDto } from './dto/change-password.dto';
 import { AuthService } from './auth.service';
-import { TenantBootstrapService } from './tenant-bootstrap.service';
 import { JwtAuthGuard } from './guards/jwt-auth.guard';
 import { AuthUserPayload } from './interfaces/auth-user-payload.interface';
 import { JwtService } from '@nestjs/jwt';
@@ -36,7 +34,6 @@ type RequestWithUser = Request & {
 export class AuthController {
   constructor(
     private readonly authService: AuthService,
-    private readonly tenantBootstrapService: TenantBootstrapService,
     private readonly jwtService: JwtService,
   ) {}
 
@@ -53,16 +50,7 @@ export class AuthController {
   @ApiOperation({ summary: 'Register a new tenant and owner account' })
   @ApiCreatedResponse({ description: 'Tenant and owner created, JWT returned' })
   async register(@Body() dto: RegisterDto) {
-    const passwordHash = await hash(dto.password, 12);
-
-    const { tenant, branch, user, roles } = await this.tenantBootstrapService.createTenant({
-      businessName: dto.business_name,
-      ownerName: dto.owner_name,
-      email: dto.email,
-      passwordHash,
-      phone: dto.phone,
-      signupSource: 'self_service',
-    });
+    const { tenant, branch, user, roles } = await this.authService.register(dto);
 
     const ownerRole = roles.get('owner')!;
 

@@ -8,8 +8,10 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { compare, hash } from 'bcryptjs';
 import { LoginDto } from './dto/login.dto/login.dto';
+import { RegisterDto } from './dto/register.dto';
 import { ChangePasswordDto } from './dto/change-password.dto';
 import { UsersService } from '../users/users.service';
+import { TenantBootstrapService, TenantBootstrapResult } from './tenant-bootstrap.service';
 import { UserEntity } from '../users/entities/user.entity/user.entity';
 import { RoleEntity } from '../rbac/entities/role.entity';
 import { BranchEntity } from '../database/entities/branch.entity';
@@ -23,6 +25,7 @@ export class AuthService {
     private readonly usersService: UsersService,
     private readonly jwtService: JwtService,
     private readonly rbacService: RbacService,
+    private readonly tenantBootstrapService: TenantBootstrapService,
     @InjectRepository(RoleEntity)
     private readonly roleRepo: Repository<RoleEntity>,
     @InjectRepository(BranchEntity)
@@ -60,6 +63,18 @@ export class AuthService {
         user: this.serializeUser(user),
       },
     };
+  }
+
+  async register(dto: RegisterDto): Promise<TenantBootstrapResult> {
+    const passwordHash = await hash(dto.password, 12);
+    return this.tenantBootstrapService.createTenant({
+      businessName: dto.business_name,
+      ownerName: dto.owner_name,
+      email: dto.email,
+      passwordHash,
+      phone: dto.phone,
+      signupSource: 'self_service',
+    });
   }
 
   async getCurrentUser(authUser: AuthUserPayload | undefined) {

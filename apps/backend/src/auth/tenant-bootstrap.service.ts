@@ -105,13 +105,15 @@ export class TenantBootstrapService {
   async createTenant(input: TenantBootstrapInput): Promise<TenantBootstrapResult> {
     const { businessName, ownerName, email, passwordHash, phone, signupSource, onboardedBy } = input;
 
-    // Check if email already in use before starting transaction
-    const existingUser = await this.dataSource.getRepository(UserEntity).findOne({ where: { email } });
-    if (existingUser) {
-      throw new ConflictException('Email is already registered');
-    }
-
     return this.dataSource.transaction(async (manager: EntityManager) => {
+      // ------------------------------------------------------------------
+      // 0. Check email uniqueness inside the transaction to avoid races
+      // ------------------------------------------------------------------
+      const existingUser = await manager.findOne(UserEntity, { where: { email } });
+      if (existingUser) {
+        throw new ConflictException('Email is already registered');
+      }
+
       // ------------------------------------------------------------------
       // 1. Create tenant
       // ------------------------------------------------------------------
