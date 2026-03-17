@@ -32,6 +32,6 @@ import { TenantEntity } from '../database/entities/tenant.entity';
   ],
   controllers: [AuthController],
   providers: [AuthService, TenantBootstrapService, JwtAuthGuard],
-  exports: [JwtModule, JwtAuthGuard],
+  exports: [JwtModule, JwtAuthGuard, TenantBootstrapService],
 })
 export class AuthModule {}

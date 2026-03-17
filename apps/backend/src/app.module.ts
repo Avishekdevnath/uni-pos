@@ -18,6 +18,7 @@ import { BranchesModule } from './branches/branches.module';
 import { CheckoutModule } from './checkout/checkout.module';
 import { StatsModule } from './stats/stats.module';
 import { RbacModule } from './rbac/rbac.module';
+import { PlatformModule } from './platform/platform.module';
 
 @Module({
   imports: [
@@ -41,6 +42,7 @@ import { RbacModule } from './rbac/rbac.module';
     CheckoutModule,
     StatsModule,
     RbacModule,
+    PlatformModule,
   ],
   controllers: [AppController],
   providers: [AppService],
