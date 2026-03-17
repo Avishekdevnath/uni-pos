@@ -9,6 +9,7 @@ import {
   Request,
   UseGuards,
 } from '@nestjs/common';
+import { Throttle } from '@nestjs/throttler';
 import { PlatformTenantsService } from './platform-tenants.service';
 import { PlatformJwtAuthGuard } from './guards/platform-jwt-auth.guard';
 import { CreateTenantDto } from './dto/create-tenant.dto';
@@ -52,6 +53,7 @@ export class PlatformTenantsController {
   }
 
   @Post(':id/impersonate')
+  @Throttle({ default: { ttl: 60000, limit: 5 } })
   impersonate(
     @Param('id') id: string,
     @Body() dto: ImpersonateDto,

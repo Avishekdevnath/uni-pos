@@ -6,29 +6,18 @@ import { AppModule } from './app.module';
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
   const logger = new Logger('Bootstrap');
-  const allowedOrigins = (
-    process.env.ADMIN_ALLOWED_ORIGINS ??
-    'http://localhost:3000,http://127.0.0.1:3000,http://localhost:3002,http://127.0.0.1:3002'
+
+  const origins = (
+    process.env.CORS_ORIGINS ||
+    process.env.ADMIN_ALLOWED_ORIGINS ||
+    'http://localhost:3001,http://localhost:3002'
   )
     .split(',')
     .map((origin) => origin.trim())
     .filter(Boolean);
 
-  app.setGlobalPrefix('api/v1', { exclude: ['receipts/html/:token'] });
-  app.enableCors({
-    origin: (
-      origin: string | undefined,
-      callback: (error: Error | null, allow?: boolean) => void,
-    ) => {
-      if (!origin || allowedOrigins.includes(origin)) {
-        callback(null, true);
-        return;
-      }
-
-      callback(new Error(`Origin ${origin} is not allowed by CORS`), false);
-    },
-    credentials: true,
-  });
+  app.setGlobalPrefix('api/v1', { exclude: ['receipts/html/:token', 'health'] });
+  app.enableCors({ origin: origins, credentials: true });
   app.useGlobalPipes(
     new ValidationPipe({
       whitelist: true,

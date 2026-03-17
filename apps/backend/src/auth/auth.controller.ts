@@ -8,6 +8,7 @@ import {
   Req,
   UseGuards,
 } from '@nestjs/common';
+import { Throttle } from '@nestjs/throttler';
 import {
   ApiBearerAuth,
   ApiCreatedResponse,
@@ -39,6 +40,7 @@ export class AuthController {
 
   @Post('login')
   @HttpCode(200)
+  @Throttle({ default: { ttl: 60000, limit: 10 } })
   @ApiOperation({ summary: 'Authenticate user and return JWT token' })
   @ApiOkResponse({ description: 'Authentication successful' })
   @ApiUnauthorizedResponse({ description: 'Invalid credentials' })
@@ -47,6 +49,7 @@ export class AuthController {
   }
 
   @Post('register')
+  @Throttle({ default: { ttl: 60000, limit: 10 } })
   @ApiOperation({ summary: 'Register a new tenant and owner account' })
   @ApiCreatedResponse({ description: 'Tenant and owner created, JWT returned' })
   async register(@Body() dto: RegisterDto) {

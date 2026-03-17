@@ -1,6 +1,8 @@
 import { Module } from '@nestjs/common';
+import { APP_GUARD } from '@nestjs/core';
 import { ConfigModule } from '@nestjs/config';
 import { EventEmitterModule } from '@nestjs/event-emitter';
+import { ThrottlerModule, ThrottlerGuard } from '@nestjs/throttler';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { AuthModule } from './auth/auth.module';
@@ -22,6 +24,7 @@ import { PlatformModule } from './platform/platform.module';
 import { ReceiptsModule } from './receipts/receipts.module';
 import { BranchGroupsModule } from './branch-groups/branch-groups.module';
 import { PricingModule } from './pricing/pricing.module';
+import { HealthController } from './health/health.controller';
 
 @Module({
   imports: [
@@ -30,6 +33,7 @@ import { PricingModule } from './pricing/pricing.module';
       envFilePath: ['.env.local', '.env'],
     }),
     EventEmitterModule.forRoot(),
+    ThrottlerModule.forRoot([{ ttl: 60000, limit: 100 }]),
     DatabaseModule,
     UsersModule,
     AuthModule,
@@ -50,7 +54,13 @@ import { PricingModule } from './pricing/pricing.module';
     BranchGroupsModule,
     PricingModule,
   ],
-  controllers: [AppController],
-  providers: [AppService],
+  controllers: [AppController, HealthController],
+  providers: [
+    AppService,
+    {
+      provide: APP_GUARD,
+      useClass: ThrottlerGuard,
+    },
+  ],
 })
 export class AppModule {}
