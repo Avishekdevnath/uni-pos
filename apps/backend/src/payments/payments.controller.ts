@@ -15,6 +15,8 @@ import {
 import { Request } from 'express';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { AuthUserPayload } from '../auth/interfaces/auth-user-payload.interface';
+import { RequirePermission } from '../rbac/decorators/require-permission.decorator';
+import { PermissionGuard } from '../rbac/guards/permission.guard';
 import { ListPaymentsQueryDto } from './dto/list-payments-query.dto';
 import { PaymentsService } from './payments.service';
 
@@ -23,13 +25,14 @@ type RequestWithUser = Request & {
 };
 
 @Controller('payments')
-@UseGuards(JwtAuthGuard)
+@UseGuards(JwtAuthGuard, PermissionGuard)
 @ApiTags('payments')
 @ApiBearerAuth()
 export class PaymentsController {
   constructor(private readonly paymentsService: PaymentsService) {}
 
   @Get()
+  @RequirePermission('payments:read')
   @ApiOperation({ summary: 'List payments for the authenticated tenant' })
   @ApiQuery({ name: 'branch_id', required: false, type: String })
   @ApiQuery({ name: 'order_id', required: false, type: String })

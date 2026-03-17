@@ -21,6 +21,8 @@ import {
 import { Request } from 'express';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { AuthUserPayload } from '../auth/interfaces/auth-user-payload.interface';
+import { RequirePermission } from '../rbac/decorators/require-permission.decorator';
+import { PermissionGuard } from '../rbac/guards/permission.guard';
 import { CreateTaxConfigDto } from './dto/create-tax-config.dto';
 import { UpdateTaxConfigDto } from './dto/update-tax-config.dto';
 import { TaxService } from './tax.service';
@@ -30,13 +32,14 @@ type RequestWithUser = Request & {
 };
 
 @Controller('tax-configs')
-@UseGuards(JwtAuthGuard)
+@UseGuards(JwtAuthGuard, PermissionGuard)
 @ApiTags('tax-configs')
 @ApiBearerAuth()
 export class TaxConfigsController {
   constructor(private readonly taxService: TaxService) {}
 
   @Get()
+  @RequirePermission('taxes:read')
   @ApiOperation({ summary: 'List tax configs for the authenticated tenant' })
   @ApiQuery({ name: 'branch_id', required: false, type: String })
   @ApiQuery({ name: 'tax_group_id', required: false, type: String })
@@ -57,6 +60,7 @@ export class TaxConfigsController {
   }
 
   @Post()
+  @RequirePermission('taxes:create')
   @ApiOperation({ summary: 'Create a tax config' })
   @ApiOkResponse({ description: 'Tax config created successfully' })
   async create(
@@ -70,6 +74,7 @@ export class TaxConfigsController {
   }
 
   @Patch(':id')
+  @RequirePermission('taxes:update')
   @ApiOperation({ summary: 'Update a tax config' })
   @ApiParam({ name: 'id', format: 'uuid' })
   @ApiOkResponse({ description: 'Tax config updated successfully' })
@@ -89,6 +94,7 @@ export class TaxConfigsController {
   }
 
   @Delete(':id')
+  @RequirePermission('taxes:delete')
   @ApiOperation({ summary: 'Archive a tax config' })
   @ApiParam({ name: 'id', format: 'uuid' })
   @ApiOkResponse({ description: 'Tax config archived successfully' })

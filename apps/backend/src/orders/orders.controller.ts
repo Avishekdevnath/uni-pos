@@ -21,6 +21,8 @@ import {
 import { Request } from 'express';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { AuthUserPayload } from '../auth/interfaces/auth-user-payload.interface';
+import { RequirePermission } from '../rbac/decorators/require-permission.decorator';
+import { PermissionGuard } from '../rbac/guards/permission.guard';
 import { AddOrderItemDto } from './dto/add-order-item.dto';
 import { ApplyOrderDiscountDto } from './dto/apply-order-discount.dto';
 import { CreateOrderDto } from './dto/create-order.dto';
@@ -33,13 +35,14 @@ type RequestWithUser = Request & {
 };
 
 @Controller('orders')
-@UseGuards(JwtAuthGuard)
+@UseGuards(JwtAuthGuard, PermissionGuard)
 @ApiTags('orders')
 @ApiBearerAuth()
 export class OrdersController {
   constructor(private readonly ordersService: OrdersService) {}
 
   @Post()
+  @RequirePermission('orders:create')
   @ApiOperation({ summary: 'Create a draft order' })
   @ApiOkResponse({ description: 'Draft order created successfully' })
   async createDraft(
@@ -57,6 +60,7 @@ export class OrdersController {
   }
 
   @Get()
+  @RequirePermission('orders:read')
   @ApiOperation({ summary: 'List orders for the authenticated tenant' })
   @ApiQuery({ name: 'branch_id', required: false, type: String })
   @ApiQuery({ name: 'status', required: false, type: String })
@@ -76,6 +80,7 @@ export class OrdersController {
   }
 
   @Get(':id')
+  @RequirePermission('orders:read')
   @ApiOperation({ summary: 'Get order detail' })
   @ApiParam({ name: 'id', format: 'uuid' })
   @ApiOkResponse({ description: 'Order returned successfully' })
@@ -87,6 +92,7 @@ export class OrdersController {
   }
 
   @Get(':id/preview')
+  @RequirePermission('orders:read')
   @ApiOperation({ summary: 'Get order receipt preview' })
   @ApiParam({ name: 'id', format: 'uuid' })
   @ApiOkResponse({ description: 'Order preview returned successfully' })
@@ -104,6 +110,7 @@ export class OrdersController {
   }
 
   @Post(':id/items')
+  @RequirePermission('orders:update')
   @ApiOperation({ summary: 'Add an item to an order' })
   @ApiParam({ name: 'id', format: 'uuid' })
   @ApiOkResponse({ description: 'Item added successfully' })
@@ -119,6 +126,7 @@ export class OrdersController {
   }
 
   @Patch(':id/items/:itemId')
+  @RequirePermission('orders:update')
   @ApiOperation({ summary: 'Update an order item' })
   @ApiParam({ name: 'id', format: 'uuid' })
   @ApiParam({ name: 'itemId', format: 'uuid' })
@@ -141,6 +149,7 @@ export class OrdersController {
   }
 
   @Delete(':id/items/:itemId')
+  @RequirePermission('orders:update')
   @ApiOperation({ summary: 'Remove an item from an order' })
   @ApiParam({ name: 'id', format: 'uuid' })
   @ApiParam({ name: 'itemId', format: 'uuid' })
@@ -161,6 +170,7 @@ export class OrdersController {
   }
 
   @Post(':id/discounts')
+  @RequirePermission('orders:update')
   @ApiOperation({ summary: 'Apply a discount to an order' })
   @ApiParam({ name: 'id', format: 'uuid' })
   @ApiOkResponse({ description: 'Discount applied successfully' })
@@ -180,6 +190,7 @@ export class OrdersController {
   }
 
   @Delete(':id/discounts/:discountId')
+  @RequirePermission('orders:update')
   @ApiOperation({ summary: 'Remove a discount from an order' })
   @ApiParam({ name: 'id', format: 'uuid' })
   @ApiParam({ name: 'discountId', format: 'uuid' })

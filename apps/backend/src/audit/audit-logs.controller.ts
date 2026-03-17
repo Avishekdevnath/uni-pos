@@ -5,6 +5,8 @@ import { Request } from 'express';
 import { Repository } from 'typeorm';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { AuthUserPayload } from '../auth/interfaces/auth-user-payload.interface';
+import { RequirePermission } from '../rbac/decorators/require-permission.decorator';
+import { PermissionGuard } from '../rbac/guards/permission.guard';
 import { ListAuditLogsQueryDto } from './dto/list-audit-logs-query.dto';
 import { AuditLogEntity } from './entities/audit-log.entity';
 
@@ -13,7 +15,7 @@ type RequestWithUser = Request & {
 };
 
 @Controller('audit-logs')
-@UseGuards(JwtAuthGuard)
+@UseGuards(JwtAuthGuard, PermissionGuard)
 @ApiTags('audit-logs')
 @ApiBearerAuth()
 export class AuditLogsController {
@@ -23,6 +25,7 @@ export class AuditLogsController {
   ) {}
 
   @Get()
+  @RequirePermission('audit_logs:read')
   @ApiOperation({ summary: 'List audit logs with filtering and pagination' })
   @ApiOkResponse({ description: 'Audit logs returned successfully' })
   async list(@Req() request: RequestWithUser, @Query() query: ListAuditLogsQueryDto) {

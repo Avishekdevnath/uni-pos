@@ -21,6 +21,8 @@ import { EventEmitter2 } from '@nestjs/event-emitter';
 import { Request } from 'express';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { AuthUserPayload } from '../auth/interfaces/auth-user-payload.interface';
+import { RequirePermission } from '../rbac/decorators/require-permission.decorator';
+import { PermissionGuard } from '../rbac/guards/permission.guard';
 import { InventoryService } from './inventory.service';
 import { CreateStockInDto } from './dto/create-stock-in.dto';
 import { CreateAdjustmentDto } from './dto/create-adjustment.dto';
@@ -33,7 +35,7 @@ type RequestWithUser = Request & {
 };
 
 @Controller('inventory')
-@UseGuards(JwtAuthGuard)
+@UseGuards(JwtAuthGuard, PermissionGuard)
 @ApiTags('inventory')
 @ApiBearerAuth()
 export class InventoryController {
@@ -43,6 +45,7 @@ export class InventoryController {
   ) {}
 
   @Get('balances')
+  @RequirePermission('inventory:read')
   @ApiOperation({ summary: 'List inventory balances for a branch' })
   @ApiQuery({ name: 'branch_id', required: true, type: String })
   @ApiQuery({ name: 'product_id', required: false, type: String })
@@ -59,6 +62,7 @@ export class InventoryController {
   }
 
   @Get('movements')
+  @RequirePermission('inventory:read')
   @ApiOperation({ summary: 'List inventory movements for a branch' })
   @ApiQuery({ name: 'branch_id', required: true, type: String })
   @ApiQuery({ name: 'product_id', required: false, type: String })
@@ -78,6 +82,7 @@ export class InventoryController {
   }
 
   @Post('stock-in')
+  @RequirePermission('inventory:receive')
   @ApiOperation({ summary: 'Create a stock-in batch' })
   @ApiOkResponse({ description: 'Stock-in batch created successfully' })
   async createStockIn(
@@ -97,6 +102,7 @@ export class InventoryController {
   }
 
   @Post('adjustments')
+  @RequirePermission('inventory:adjust')
   @ApiOperation({ summary: 'Create an inventory adjustment batch' })
   @ApiOkResponse({ description: 'Adjustment batch created successfully' })
   async createAdjustment(
@@ -113,6 +119,7 @@ export class InventoryController {
   }
 
   @Patch('branch-product-configs/:productId')
+  @RequirePermission('inventory:adjust')
   @ApiOperation({ summary: 'Upsert branch-product config (thresholds, availability)' })
   @ApiParam({ name: 'productId', format: 'uuid' })
   @ApiQuery({ name: 'branch_id', required: true, type: String })

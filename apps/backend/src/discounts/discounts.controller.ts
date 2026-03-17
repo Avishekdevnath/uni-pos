@@ -23,6 +23,8 @@ import { IsArray, IsUUID } from 'class-validator';
 import { Request } from 'express';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { AuthUserPayload } from '../auth/interfaces/auth-user-payload.interface';
+import { RequirePermission } from '../rbac/decorators/require-permission.decorator';
+import { PermissionGuard } from '../rbac/guards/permission.guard';
 import { CreateDiscountPresetDto } from './dto/create-discount-preset.dto';
 import { ListDiscountPresetsQueryDto } from './dto/list-discount-presets-query.dto';
 import { UpdateDiscountPresetDto } from './dto/update-discount-preset.dto';
@@ -39,13 +41,14 @@ class SetBranchesDto {
 }
 
 @Controller('discount-presets')
-@UseGuards(JwtAuthGuard)
+@UseGuards(JwtAuthGuard, PermissionGuard)
 @ApiTags('discount-presets')
 @ApiBearerAuth()
 export class DiscountsController {
   constructor(private readonly discountsService: DiscountsService) {}
 
   @Get()
+  @RequirePermission('discounts:read')
   @ApiOperation({ summary: 'List discount presets for the authenticated tenant' })
   @ApiQuery({ name: 'branch_id', required: false, type: String })
   @ApiQuery({ name: 'scope', required: false, type: String })
@@ -61,6 +64,7 @@ export class DiscountsController {
   }
 
   @Post()
+  @RequirePermission('discounts:create')
   @ApiOperation({ summary: 'Create a discount preset' })
   @ApiOkResponse({ description: 'Discount preset created successfully' })
   async create(
@@ -74,6 +78,7 @@ export class DiscountsController {
   }
 
   @Patch(':id')
+  @RequirePermission('discounts:update')
   @ApiOperation({ summary: 'Update a discount preset' })
   @ApiParam({ name: 'id', format: 'uuid' })
   @ApiOkResponse({ description: 'Discount preset updated successfully' })
@@ -89,6 +94,7 @@ export class DiscountsController {
   }
 
   @Delete(':id')
+  @RequirePermission('discounts:delete')
   @ApiOperation({ summary: 'Archive a discount preset' })
   @ApiParam({ name: 'id', format: 'uuid' })
   @ApiOkResponse({ description: 'Discount preset archived successfully' })
@@ -100,6 +106,7 @@ export class DiscountsController {
   }
 
   @Put(':id/branches')
+  @RequirePermission('discounts:update')
   @ApiOperation({ summary: 'Set branches for a discount preset' })
   @ApiParam({ name: 'id', format: 'uuid' })
   @ApiOkResponse({ description: 'Discount preset branches updated successfully' })

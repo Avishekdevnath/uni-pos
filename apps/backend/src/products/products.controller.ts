@@ -21,6 +21,8 @@ import {
 import { Request } from 'express';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { AuthUserPayload } from '../auth/interfaces/auth-user-payload.interface';
+import { RequirePermission } from '../rbac/decorators/require-permission.decorator';
+import { PermissionGuard } from '../rbac/guards/permission.guard';
 import { CreateProductDto } from './dto/create-product.dto';
 import { ListProductsQueryDto } from './dto/list-products-query.dto';
 import { UpdateProductDto } from './dto/update-product.dto';
@@ -31,13 +33,14 @@ type RequestWithUser = Request & {
 };
 
 @Controller('products')
-@UseGuards(JwtAuthGuard)
+@UseGuards(JwtAuthGuard, PermissionGuard)
 @ApiTags('products')
 @ApiBearerAuth()
 export class ProductsController {
   constructor(private readonly productsService: ProductsService) {}
 
   @Get()
+  @RequirePermission('products:read')
   @ApiOperation({ summary: 'List products for the authenticated tenant' })
   @ApiQuery({ name: 'branch_id', required: false, type: String })
   @ApiQuery({ name: 'search', required: false, type: String })
@@ -56,6 +59,7 @@ export class ProductsController {
   }
 
   @Post()
+  @RequirePermission('products:create')
   @ApiOperation({ summary: 'Create a product' })
   @ApiOkResponse({ description: 'Product created successfully' })
   async create(@Req() request: RequestWithUser, @Body() dto: CreateProductDto) {
@@ -66,6 +70,7 @@ export class ProductsController {
   }
 
   @Get(':id')
+  @RequirePermission('products:read')
   @ApiOperation({ summary: 'Get product detail' })
   @ApiParam({ name: 'id', format: 'uuid' })
   @ApiOkResponse({ description: 'Product returned successfully' })
@@ -77,6 +82,7 @@ export class ProductsController {
   }
 
   @Patch(':id')
+  @RequirePermission('products:update')
   @ApiOperation({ summary: 'Update a product' })
   @ApiParam({ name: 'id', format: 'uuid' })
   @ApiOkResponse({ description: 'Product updated successfully' })
@@ -92,6 +98,7 @@ export class ProductsController {
   }
 
   @Delete(':id')
+  @RequirePermission('products:delete')
   @ApiOperation({ summary: 'Archive a product' })
   @ApiParam({ name: 'id', format: 'uuid' })
   @ApiOkResponse({ description: 'Product archived successfully' })

@@ -9,6 +9,8 @@ import {
 import { Request } from 'express';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { AuthUserPayload } from '../auth/interfaces/auth-user-payload.interface';
+import { RequirePermission } from '../rbac/decorators/require-permission.decorator';
+import { PermissionGuard } from '../rbac/guards/permission.guard';
 import { CreateCategoryDto } from './dto/create-category.dto';
 import { UpdateCategoryDto } from './dto/update-category.dto';
 import { CategoriesService } from './categories.service';
@@ -18,13 +20,14 @@ type RequestWithUser = Request & {
 };
 
 @Controller('categories')
-@UseGuards(JwtAuthGuard)
+@UseGuards(JwtAuthGuard, PermissionGuard)
 @ApiTags('categories')
 @ApiBearerAuth()
 export class CategoriesController {
   constructor(private readonly categoriesService: CategoriesService) {}
 
   @Get()
+  @RequirePermission('categories:read')
   @ApiOperation({ summary: 'List categories for the authenticated tenant' })
   @ApiOkResponse({ description: 'Category list returned successfully' })
   async list(@Req() request: RequestWithUser) {
@@ -35,6 +38,7 @@ export class CategoriesController {
   }
 
   @Post()
+  @RequirePermission('categories:create')
   @ApiOperation({ summary: 'Create a category' })
   @ApiOkResponse({ description: 'Category created successfully' })
   async create(@Req() request: RequestWithUser, @Body() dto: CreateCategoryDto) {
@@ -45,6 +49,7 @@ export class CategoriesController {
   }
 
   @Patch(':id')
+  @RequirePermission('categories:update')
   @ApiOperation({ summary: 'Update a category' })
   @ApiParam({ name: 'id', format: 'uuid' })
   @ApiOkResponse({ description: 'Category updated successfully' })
@@ -60,6 +65,7 @@ export class CategoriesController {
   }
 
   @Delete(':id')
+  @RequirePermission('categories:delete')
   @ApiOperation({ summary: 'Archive a category (soft delete)' })
   @ApiParam({ name: 'id', format: 'uuid' })
   @ApiOkResponse({ description: 'Category archived successfully' })

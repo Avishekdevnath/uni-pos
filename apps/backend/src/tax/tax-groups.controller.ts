@@ -19,6 +19,8 @@ import {
 import { Request } from 'express';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { AuthUserPayload } from '../auth/interfaces/auth-user-payload.interface';
+import { RequirePermission } from '../rbac/decorators/require-permission.decorator';
+import { PermissionGuard } from '../rbac/guards/permission.guard';
 import { CreateTaxGroupDto } from './dto/create-tax-group.dto';
 import { UpdateTaxGroupDto } from './dto/update-tax-group.dto';
 import { TaxService } from './tax.service';
@@ -28,13 +30,14 @@ type RequestWithUser = Request & {
 };
 
 @Controller('tax-groups')
-@UseGuards(JwtAuthGuard)
+@UseGuards(JwtAuthGuard, PermissionGuard)
 @ApiTags('tax-groups')
 @ApiBearerAuth()
 export class TaxGroupsController {
   constructor(private readonly taxService: TaxService) {}
 
   @Get()
+  @RequirePermission('taxes:read')
   @ApiOperation({ summary: 'List tax groups for the authenticated tenant' })
   @ApiOkResponse({ description: 'Tax group list returned successfully' })
   async list(@Req() request: RequestWithUser) {
@@ -45,6 +48,7 @@ export class TaxGroupsController {
   }
 
   @Post()
+  @RequirePermission('taxes:create')
   @ApiOperation({ summary: 'Create a tax group' })
   @ApiOkResponse({ description: 'Tax group created successfully' })
   async create(
@@ -58,6 +62,7 @@ export class TaxGroupsController {
   }
 
   @Patch(':id')
+  @RequirePermission('taxes:update')
   @ApiOperation({ summary: 'Update a tax group' })
   @ApiParam({ name: 'id', format: 'uuid' })
   @ApiOkResponse({ description: 'Tax group updated successfully' })
@@ -73,6 +78,7 @@ export class TaxGroupsController {
   }
 
   @Delete(':id')
+  @RequirePermission('taxes:delete')
   @ApiOperation({ summary: 'Archive a tax group' })
   @ApiParam({ name: 'id', format: 'uuid' })
   @ApiOkResponse({ description: 'Tax group archived successfully' })
