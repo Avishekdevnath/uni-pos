@@ -7,6 +7,7 @@ import { PaymentsService } from '../payments/payments.service';
 import { InventoryService } from '../inventory/inventory.service';
 import { TaxService } from '../tax/tax.service';
 import { ReceiptsService } from '../receipts/receipts.service';
+import { PricingService } from '../pricing/pricing.service';
 import { BranchEntity } from '../database/entities/branch.entity';
 import { OrderEntity } from '../orders/entities/order.entity';
 
@@ -32,6 +33,7 @@ export class CheckoutService {
     private readonly inventoryService: InventoryService,
     private readonly taxService: TaxService,
     private readonly receiptsService: ReceiptsService,
+    private readonly pricingService: PricingService,
     private readonly dataSource: DataSource,
     private readonly eventEmitter: EventEmitter2,
   ) {}
@@ -56,6 +58,11 @@ export class CheckoutService {
       | InventoryDeductedEvent
       | StockInEvent
     > = [];
+
+    // Resolve branch-level price overrides before entering transaction
+    for (const item of order.items) {
+      item.unitPrice = await this.pricingService.resolvePrice(order.branchId, item.productId);
+    }
 
     await this.dataSource.transaction(async (manager) => {
       // Step 3: Calculate totals authoritatively (writes item rows + order amounts)

@@ -21,6 +21,7 @@ import { RbacModule } from './rbac/rbac.module';
 import { PlatformModule } from './platform/platform.module';
 import { ReceiptsModule } from './receipts/receipts.module';
 import { BranchGroupsModule } from './branch-groups/branch-groups.module';
+import { PricingModule } from './pricing/pricing.module';
 
 @Module({
   imports: [
@@ -47,6 +48,7 @@ import { BranchGroupsModule } from './branch-groups/branch-groups.module';
     PlatformModule,
     ReceiptsModule,
     BranchGroupsModule,
+    PricingModule,
   ],
   controllers: [AppController],
   providers: [AppService],
