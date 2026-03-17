@@ -17,6 +17,7 @@ import { AuditModule } from './audit/audit.module';
 import { BranchesModule } from './branches/branches.module';
 import { CheckoutModule } from './checkout/checkout.module';
 import { StatsModule } from './stats/stats.module';
+import { RbacModule } from './rbac/rbac.module';
 
 @Module({
   imports: [
@@ -39,6 +40,7 @@ import { StatsModule } from './stats/stats.module';
     BranchesModule,
     CheckoutModule,
     StatsModule,
+    RbacModule,
   ],
   controllers: [AppController],
   providers: [AppService],
