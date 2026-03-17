@@ -19,6 +19,7 @@ import { CheckoutModule } from './checkout/checkout.module';
 import { StatsModule } from './stats/stats.module';
 import { RbacModule } from './rbac/rbac.module';
 import { PlatformModule } from './platform/platform.module';
+import { ReceiptsModule } from './receipts/receipts.module';
 
 @Module({
   imports: [
@@ -43,6 +44,7 @@ import { PlatformModule } from './platform/platform.module';
     StatsModule,
     RbacModule,
     PlatformModule,
+    ReceiptsModule,
   ],
   controllers: [AppController],
   providers: [AppService],

@@ -6,8 +6,15 @@ import { OrdersService } from '../orders/orders.service';
 import { PaymentsService } from '../payments/payments.service';
 import { InventoryService } from '../inventory/inventory.service';
 import { TaxService } from '../tax/tax.service';
+import { ReceiptsService } from '../receipts/receipts.service';
 import { BranchEntity } from '../database/entities/branch.entity';
 import { OrderEntity } from '../orders/entities/order.entity';
+
+export interface CheckoutCompleteResult {
+  order: OrderEntity;
+  receiptToken: string;
+  receiptUrl: string;
+}
 
 import { CompleteOrderDto } from '../orders/dto/complete-order.dto';
 import { CancelOrderDto } from '../orders/dto/cancel-order.dto';
@@ -24,6 +31,7 @@ export class CheckoutService {
     private readonly paymentsService: PaymentsService,
     private readonly inventoryService: InventoryService,
     private readonly taxService: TaxService,
+    private readonly receiptsService: ReceiptsService,
     private readonly dataSource: DataSource,
     private readonly eventEmitter: EventEmitter2,
   ) {}
@@ -33,7 +41,7 @@ export class CheckoutService {
     tenantId: string,
     actorId: string,
     dto: CompleteOrderDto,
-  ): Promise<OrderEntity> {
+  ): Promise<CheckoutCompleteResult> {
     // Step 1: Load order with all relations (items.product included via getOrder)
     const order = await this.ordersService.getOrder(tenantId, orderId);
 
@@ -124,7 +132,21 @@ export class CheckoutService {
       this.eventEmitter.emit(getEventName(event), event);
     }
 
-    return this.ordersService.getOrder(tenantId, orderId);
+    const completedOrder = await this.ordersService.getOrder(tenantId, orderId);
+
+    // Generate receipt token post-commit (idempotent: if token already exists, load it)
+    let receiptToken: string;
+    try {
+      receiptToken = await this.receiptsService.createToken(orderId, tenantId);
+    } catch {
+      // Token may already exist (orderId is unique) — fetch existing one
+      receiptToken = (await this.receiptsService.getTokenByOrderId(orderId)) ?? '';
+    }
+
+    const backendUrl = process.env.BACKEND_URL ?? 'http://localhost:8000';
+    const receiptUrl = `${backendUrl}/receipts/html/${receiptToken}`;
+
+    return { order: completedOrder, receiptToken, receiptUrl };
   }
 
   async cancel(

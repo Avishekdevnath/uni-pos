@@ -14,7 +14,7 @@ async function bootstrap() {
     .map((origin) => origin.trim())
     .filter(Boolean);
 
-  app.setGlobalPrefix('api/v1');
+  app.setGlobalPrefix('api/v1', { exclude: ['receipts/html/:token'] });
   app.enableCors({
     origin: (
       origin: string | undefined,
