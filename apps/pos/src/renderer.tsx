@@ -1,25 +1,34 @@
-import React from 'react';
-import { createRoot } from 'react-dom/client';
 import './index.css';
-import { QueryProvider } from './providers/query-provider';
+import React from 'react';
+import ReactDOM from 'react-dom/client';
+import { QueryClientProvider } from '@tanstack/react-query';
+import { createQueryClient } from './lib/query-client';
+import {
+  applyResolvedTheme,
+  getStoredThemePreference,
+  getSystemResolvedTheme,
+  resolveThemePreference,
+} from './lib/theme';
 import { AuthProvider } from './providers/auth-provider';
-import { CartProvider } from './providers/cart-provider';
-import { AppShell } from './components/app-shell';
+import { AppShell } from './components/shell/AppShell';
 
-const rootElement = document.getElementById('app');
+const queryClient = createQueryClient();
+const initialThemePreference = getStoredThemePreference(localStorage);
+const initialSystemTheme = getSystemResolvedTheme(
+  typeof window.matchMedia === 'function' ? window.matchMedia.bind(window) : undefined,
+);
 
-if (!rootElement) {
-  throw new Error('Missing #app root element');
-}
+applyResolvedTheme(
+  document.documentElement,
+  resolveThemePreference(initialThemePreference, initialSystemTheme === 'dark'),
+);
 
-createRoot(rootElement).render(
+ReactDOM.createRoot(document.getElementById('app')!).render(
   <React.StrictMode>
-    <QueryProvider>
+    <QueryClientProvider client={queryClient}>
       <AuthProvider>
-        <CartProvider>
-          <AppShell />
-        </CartProvider>
+        <AppShell />
       </AuthProvider>
-    </QueryProvider>
+    </QueryClientProvider>
   </React.StrictMode>,
 );

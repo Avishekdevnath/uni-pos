@@ -60,8 +60,11 @@ export class CheckoutService {
     > = [];
 
     // Resolve branch-level price overrides before entering transaction
+    // Skip non-catalog items (null product_id) — they carry their own unitPrice
     for (const item of order.items) {
-      item.unitPrice = await this.pricingService.resolvePrice(order.branchId, item.productId);
+      if (item.productId !== null) {
+        item.unitPrice = await this.pricingService.resolvePrice(order.branchId, item.productId);
+      }
     }
 
     await this.dataSource.transaction(async (manager) => {
@@ -71,12 +74,14 @@ export class CheckoutService {
       // Step 4: Validate and record payments (validates sum == totalAmount)
       await this.paymentsService.recordPayments(manager, order, dto.payments);
 
-      // Step 5: Deduct inventory; returns low-stock payloads for any breached thresholds
-      const deductItems = order.items.map((item) => ({
-        productId: item.productId,
-        quantity: item.quantity,
-        orderId: order.id,
-      }));
+      // Step 5: Deduct inventory; skip non-catalog items (null product_id)
+      const deductItems = order.items
+        .filter((item) => item.productId !== null)
+        .map((item) => ({
+          productId: item.productId!,
+          quantity: item.quantity,
+          orderId: order.id,
+        }));
       const lowStockPayloads = await this.inventoryService.deductStock(
         manager,
         tenantId,
@@ -150,7 +155,7 @@ export class CheckoutService {
       receiptToken = (await this.receiptsService.getTokenByOrderId(orderId)) ?? '';
     }
 
-    const backendUrl = process.env.BACKEND_URL ?? 'http://localhost:8000';
+    const backendUrl = process.env.BACKEND_URL ?? `http://localhost:${process.env.PORT ?? 3000}`;
     const receiptUrl = `${backendUrl}/receipts/html/${receiptToken}`;
 
     return { order: completedOrder, receiptToken, receiptUrl };

@@ -25,12 +25,25 @@ export class OrderItemEntity {
   @JoinColumn({ name: 'order_id' })
   order!: OrderEntity;
 
-  @Column({ name: 'product_id', type: 'uuid' })
-  productId!: string;
+  @Column({ name: 'product_id', type: 'uuid', nullable: true })
+  productId!: string | null;
 
-  @ManyToOne(() => ProductEntity, { onDelete: 'RESTRICT' })
+  @ManyToOne(() => ProductEntity, { onDelete: 'RESTRICT', nullable: true })
   @JoinColumn({ name: 'product_id' })
-  product!: ProductEntity;
+  product!: ProductEntity | null;
+
+  @Column({ type: 'varchar', length: 500, nullable: true })
+  description!: string | null;
+
+  @Column({
+    name: 'manual_tax_rate',
+    type: 'numeric',
+    precision: 5,
+    scale: 2,
+    default: 0,
+    transformer: decimalTransformer,
+  })
+  manualTaxRate!: number;
 
   @Column({
     type: 'numeric',

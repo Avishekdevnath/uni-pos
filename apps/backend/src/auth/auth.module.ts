@@ -22,12 +22,16 @@ import { TenantEntity } from '../database/entities/tenant.entity';
     JwtModule.registerAsync({
       imports: [ConfigModule],
       inject: [ConfigService],
-      useFactory: (configService: ConfigService) => ({
-        secret: configService.get<string>('JWT_SECRET') ?? 'replace-me',
-        signOptions: {
-          expiresIn: (configService.get<string>('JWT_EXPIRES_IN') ?? '1d') as never,
-        },
-      }),
+      useFactory: (configService: ConfigService) => {
+        const secret = configService.get<string>('JWT_SECRET');
+        if (!secret) throw new Error('JWT_SECRET environment variable is required');
+        return {
+          secret,
+          signOptions: {
+            expiresIn: (configService.get<string>('JWT_EXPIRES_IN') ?? '1d') as never,
+          },
+        };
+      },
     }),
   ],
   controllers: [AuthController],

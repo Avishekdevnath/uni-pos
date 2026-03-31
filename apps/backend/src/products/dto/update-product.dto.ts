@@ -72,4 +72,15 @@ export class UpdateProductDto {
   @IsString()
   @MaxLength(16)
   unit?: string;
+
+  @ApiPropertyOptional({ example: '🥤' })
+  @IsOptional()
+  @IsString()
+  @MaxLength(16)
+  emoji?: string | null;
+
+  @ApiPropertyOptional({ example: 'https://res.cloudinary.com/...' })
+  @IsOptional()
+  @IsString()
+  image_url?: string | null;
 }

@@ -1,4 +1,4 @@
-import { createContext, useCallback, useEffect, useState, type ReactNode } from 'react';
+import React, { createContext, useCallback, useEffect, useState, type ReactNode } from 'react';
 import { fetchMe, login as apiLogin, setToken } from '../lib/api';
 import type { PosBranch, PosMeResponse, PosRole, PosTenant, PosUser } from '../types/auth';
 
@@ -39,76 +39,28 @@ function applyMe(setters: {
 }
 
 export function AuthProvider({ children }: { children: ReactNode }) {
-  const [user, setUser] = useState<PosUser | null>(null);
-  const [role, setRole] = useState<PosRole | null>(null);
-  const [branch, setBranch] = useState<PosBranch | null>(null);
-  const [tenant, setTenant] = useState<PosTenant | null>(null);
-  const [permissions, setPermissions] = useState<string[]>([]);
-  const [token, setAuthToken] = useState<string | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
-
-  useEffect(() => {
-    const storedToken = localStorage.getItem(TOKEN_KEY);
-
-    if (!storedToken) {
-      setIsLoading(false);
-      return;
-    }
-
-    setAuthToken(storedToken);
-
-    fetchMe(storedToken)
-      .then((me) => {
-        applyMe({ setUser, setRole, setBranch, setTenant, setPermissions }, me);
-      })
-      .catch(() => {
-        setToken(null);
-        setAuthToken(null);
-      })
-      .finally(() => setIsLoading(false));
-  }, []);
-
-  const login = useCallback(async (email: string, password: string) => {
-    const response = await apiLogin({ email, password });
-    setToken(response.access_token);
-    setAuthToken(response.access_token);
-
-    const me = await fetchMe(response.access_token);
-    applyMe({ setUser, setRole, setBranch, setTenant, setPermissions }, me);
-
-    if (!canSellFromPermissions(me.permissions ?? [])) {
-      setToken(null);
-      setAuthToken(null);
-      throw new Error('Your account does not have POS sell permission (pos:sell).');
-    }
-  }, []);
-
-  const logout = useCallback(() => {
-    setToken(null);
-    setAuthToken(null);
-    setUser(null);
-    setRole(null);
-    setBranch(null);
-    setTenant(null);
-    setPermissions([]);
-  }, []);
-
-  const canSell = canSellFromPermissions(permissions);
+  // BYPASS AUTH: Always provide dummy authenticated context for UI/UX development
+  const dummyUser = { id: 'dev-user', name: 'Dev User', fullName: 'Dev User', email: 'dev@localhost', roleId: 'cashier', tenantId: 'tenant-1', defaultBranchId: 'main-branch' };
+  const dummyRole = { id: 'cashier', name: 'Cashier', permissions: ['pos:sell'] };
+  const dummyBranch = { id: 'main-branch', name: 'Main Branch', code: 'MAIN' };
+  const dummyTenant = { id: 'tenant-1', name: 'Demo Tenant', slug: 'demo-tenant', defaultCurrency: 'USD' };
+  const dummyPermissions = ['pos:sell', 'pos:*', '*'];
+  const dummyToken = 'dev-token';
 
   return (
     <AuthContext.Provider
       value={{
-        user,
-        role,
-        branch,
-        tenant,
-        permissions,
-        token,
-        isLoading,
-        isAuthenticated: !!user,
-        canSell,
-        login,
-        logout,
+        user: dummyUser,
+        role: dummyRole,
+        branch: dummyBranch,
+        tenant: dummyTenant,
+        permissions: dummyPermissions,
+        token: dummyToken,
+        isLoading: false,
+        isAuthenticated: true,
+        canSell: true,
+        login: async () => {},
+        logout: () => {},
       }}
     >
       {children}

@@ -33,7 +33,7 @@ export class PlatformAuthService {
     };
 
     const accessToken = this.jwtService.sign(payload, {
-      secret: process.env.PLATFORM_JWT_SECRET ?? 'platform-replace-me',
+      secret: process.env.PLATFORM_JWT_SECRET ?? (() => { throw new Error('PLATFORM_JWT_SECRET environment variable is required'); })(),
       expiresIn: '1d',
     });
 

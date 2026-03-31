@@ -83,7 +83,7 @@ export class InitSchema1773686919350 implements MigrationInterface {
         await queryRunner.query(`ALTER TABLE "orders" ADD CONSTRAINT "FK_527dd6efd5f3402f729c6b3e826" FOREIGN KEY ("tenant_id") REFERENCES "tenants"("id") ON DELETE RESTRICT ON UPDATE NO ACTION`);
         await queryRunner.query(`ALTER TABLE "orders" ADD CONSTRAINT "FK_17b723da2c12837f4bc21e33398" FOREIGN KEY ("branch_id") REFERENCES "branches"("id") ON DELETE RESTRICT ON UPDATE NO ACTION`);
         await queryRunner.query(`ALTER TABLE "orders" ADD CONSTRAINT "FK_574a2f0932043d4e4baf188ee05" FOREIGN KEY ("created_by") REFERENCES "users"("id") ON DELETE NO ACTION ON UPDATE NO ACTION`);
-        await queryRunner.query(`ALTER TABLE "orders" ADD CONSTRAINT "FK_772d0ce0473ac2ccfa26060dbe9" FOREIGN KEY ("customer_id") REFERENCES "users"("id") ON DELETE RESTRICT ON UPDATE NO ACTION`);
+        // FK for orders.customer_id → customers is added by AddCustomers migration (after customers table exists)
         await queryRunner.query(`ALTER TABLE "inventory_movements" ADD CONSTRAINT "FK_08344cc99d67ce2b3bd27831e13" FOREIGN KEY ("tenant_id") REFERENCES "tenants"("id") ON DELETE RESTRICT ON UPDATE NO ACTION`);
         await queryRunner.query(`ALTER TABLE "inventory_movements" ADD CONSTRAINT "FK_1ab8073a9fb9462a50ac175cb21" FOREIGN KEY ("branch_id") REFERENCES "branches"("id") ON DELETE RESTRICT ON UPDATE NO ACTION`);
         await queryRunner.query(`ALTER TABLE "inventory_movements" ADD CONSTRAINT "FK_5c3bec1682252c36fa161587738" FOREIGN KEY ("product_id") REFERENCES "products"("id") ON DELETE RESTRICT ON UPDATE NO ACTION`);
@@ -155,7 +155,6 @@ export class InitSchema1773686919350 implements MigrationInterface {
         await queryRunner.query(`ALTER TABLE "inventory_movements" DROP CONSTRAINT "FK_5c3bec1682252c36fa161587738"`);
         await queryRunner.query(`ALTER TABLE "inventory_movements" DROP CONSTRAINT "FK_1ab8073a9fb9462a50ac175cb21"`);
         await queryRunner.query(`ALTER TABLE "inventory_movements" DROP CONSTRAINT "FK_08344cc99d67ce2b3bd27831e13"`);
-        await queryRunner.query(`ALTER TABLE "orders" DROP CONSTRAINT "FK_772d0ce0473ac2ccfa26060dbe9"`);
         await queryRunner.query(`ALTER TABLE "orders" DROP CONSTRAINT "FK_574a2f0932043d4e4baf188ee05"`);
         await queryRunner.query(`ALTER TABLE "orders" DROP CONSTRAINT "FK_17b723da2c12837f4bc21e33398"`);
         await queryRunner.query(`ALTER TABLE "orders" DROP CONSTRAINT "FK_527dd6efd5f3402f729c6b3e826"`);

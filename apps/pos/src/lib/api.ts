@@ -8,6 +8,9 @@ export interface PosProduct {
   barcode: string | null;
   price: number;
   status: string;
+  emoji?: string;
+  stockQty?: number;
+  lowStockThreshold?: number;
 }
 
 export interface PosProductListResponse {
@@ -26,10 +29,22 @@ export interface PosOrder {
   status: string;
   totalAmount: number;
   paidAmount: number;
+  completedAt?: string;
+  createdAt?: string;
+  subtotalAmount?: number;
+  discountAmount?: number;
+  taxAmount?: number;
+  items?: Array<{
+    id: string;
+    productNameSnapshot?: string;
+    description?: string;
+    quantity: number;
+    lineTotal: number;
+  }>;
 }
 
 const TOKEN_KEY = 'uni-pos.pos.access-token';
-const DEFAULT_API_BASE_URL = 'http://localhost:8000/api/v1';
+const DEFAULT_API_BASE_URL = (import.meta.env.VITE_API_URL as string | undefined) ?? 'http://localhost:8000/api/v1';
 
 export const apiBaseUrl =
   (typeof window !== 'undefined' ? (window as Window & { __UNI_POS_API_BASE_URL__?: string }).__UNI_POS_API_BASE_URL__ : undefined) ??
@@ -178,7 +193,7 @@ export async function completeOrder(
   data: {
     client_event_id: string;
     payments: Array<{
-      method: 'cash';
+      method: 'cash' | 'card' | 'digital' | 'split';
       amount: number;
       cash_tendered?: number;
       client_event_id?: string;
@@ -194,5 +209,111 @@ export async function completeOrder(
     },
   });
 
+  return response.data;
+}
+
+// ── Reports ──────────────────────────────────────────────────
+export interface ReportsSummary {
+  revenue: number;
+  transactionCount: number;
+  avgOrderValue: number;
+  itemsSold: number;
+  voidCount: number;
+}
+
+export async function fetchReportsSummary(
+  _branchId: string,
+  date: string,
+): Promise<ReportsSummary> {
+  const response = await apiRequest<ApiResponse<ReportsSummary>>(`/reports/summary?date=${date}`);
+  return response.data;
+}
+
+// ── Customers ────────────────────────────────────────────────
+export interface Customer {
+  id: string;
+  tenantId: string;
+  fullName: string;
+  phone: string;
+  email: string | null;
+  totalOrders: number;
+  totalSpend: string;
+  lastVisitAt: string | null;
+  createdAt: string;
+}
+
+export async function fetchCustomers(params: {
+  search?: string;
+  filter?: string;
+  page?: number;
+}): Promise<{ items: Customer[]; total: number }> {
+  const q = new URLSearchParams();
+  if (params.search) q.set('search', params.search);
+  if (params.filter) q.set('filter', params.filter);
+  if (params.page) q.set('page', String(params.page));
+  const response = await apiRequest<ApiResponse<{ items: Customer[]; total: number }>>(`/customers?${q.toString()}`);
+  return response.data;
+}
+
+export async function createCustomer(data: {
+  full_name: string;
+  phone: string;
+  email?: string;
+}): Promise<Customer> {
+  const response = await apiRequest<ApiResponse<Customer>>('/customers', {
+    method: 'POST',
+    body: data,
+  });
+  return response.data;
+}
+
+export async function fetchCustomerByPhone(phone: string): Promise<Customer | null> {
+  const result = await fetchCustomers({ search: phone });
+  return result.items.find((c) => c.phone === phone) ?? null;
+}
+
+// ── Invoice Entry (free-text line items) ─────────────────────
+export interface InvoiceLineItem {
+  product_id?: string;
+  description?: string;
+  quantity: number;
+  unit_price: number;
+  manual_tax_rate?: number;
+}
+
+export async function addInvoiceItem(
+  orderId: string,
+  item: InvoiceLineItem,
+): Promise<unknown> {
+  const response = await apiRequest<ApiResponse<unknown>>(`/orders/${orderId}/items`, {
+    method: 'POST',
+    body: item,
+  });
+  return response.data;
+}
+
+// ── Products (mutations) ─────────────────────────────────────
+export async function updateProductEmoji(productId: string, emoji: string | null): Promise<PosProduct> {
+  const response = await apiRequest<ApiResponse<PosProduct>>(`/products/${productId}/emoji`, {
+    method: 'PATCH',
+    body: { emoji },
+  });
+  return response.data;
+}
+
+export async function updateProduct(
+  productId: string,
+  data: { name?: string; price?: number; sku?: string | null; barcode?: string | null; emoji?: string | null },
+): Promise<PosProduct> {
+  const response = await apiRequest<ApiResponse<PosProduct>>(`/products/${productId}`, {
+    method: 'PATCH',
+    body: data,
+  });
+  return response.data;
+}
+
+// ── Categories ───────────────────────────────────────────────
+export async function fetchCategories(): Promise<Array<{ id: string; name: string }>> {
+  const response = await apiRequest<ApiResponse<Array<{ id: string; name: string }>>>('/categories');
   return response.data;
 }

@@ -8,8 +8,12 @@ import {
   Post,
   Query,
   Req,
+  UploadedFile,
   UseGuards,
+  UseInterceptors,
 } from '@nestjs/common';
+import { FileInterceptor } from '@nestjs/platform-express';
+import { CloudinaryService } from '../cloudinary/cloudinary.service';
 import {
   ApiBearerAuth,
   ApiOkResponse,
@@ -37,7 +41,10 @@ type RequestWithUser = Request & {
 @ApiTags('products')
 @ApiBearerAuth()
 export class ProductsController {
-  constructor(private readonly productsService: ProductsService) {}
+  constructor(
+    private readonly productsService: ProductsService,
+    private readonly cloudinaryService: CloudinaryService,
+  ) {}
 
   @Get()
   @RequirePermission('products:read')
@@ -95,6 +102,34 @@ export class ProductsController {
       status: 'success',
       data: await this.productsService.update(request.user!.tenantId, id, dto),
     };
+  }
+
+  @Post(':id/image')
+  @RequirePermission('products:update')
+  @UseInterceptors(FileInterceptor('file', { limits: { fileSize: 5 * 1024 * 1024 } }))
+  @ApiOperation({ summary: 'Upload product image to Cloudinary' })
+  @ApiParam({ name: 'id', format: 'uuid' })
+  async uploadImage(
+    @Req() request: RequestWithUser,
+    @Param('id') id: string,
+    @UploadedFile() file: Express.Multer.File,
+  ) {
+    const imageUrl = await this.cloudinaryService.uploadProductImage(file, id);
+    const updated = await this.productsService.update(request.user!.tenantId, id, { image_url: imageUrl });
+    return { status: 'success', data: updated };
+  }
+
+  @Patch(':id/emoji')
+  @RequirePermission('products:update')
+  @ApiOperation({ summary: 'Set product emoji icon' })
+  @ApiParam({ name: 'id', format: 'uuid' })
+  async setEmoji(
+    @Req() request: RequestWithUser,
+    @Param('id') id: string,
+    @Body('emoji') emoji: string,
+  ) {
+    const updated = await this.productsService.update(request.user!.tenantId, id, { emoji });
+    return { status: 'success', data: updated };
   }
 
   @Delete(':id')

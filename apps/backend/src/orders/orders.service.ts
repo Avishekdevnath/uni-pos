@@ -10,6 +10,7 @@ import { OrderItemEntity } from './entities/order-item.entity';
 import { OrderItemTaxEntity } from './entities/order-item-tax.entity';
 import { OrderDiscountEntity } from './entities/order-discount.entity';
 import { ProductEntity } from '../products/entities/product.entity';
+import { TenantEntity } from '../database/entities/tenant.entity';
 import { TaxService } from '../tax/tax.service';
 import { DiscountsService } from '../discounts/discounts.service';
 import { CreateOrderDto } from './dto/create-order.dto';
@@ -31,6 +32,8 @@ export class OrdersService {
     private readonly discountRepo: Repository<OrderDiscountEntity>,
     @InjectRepository(ProductEntity)
     private readonly productRepo: Repository<ProductEntity>,
+    @InjectRepository(TenantEntity)
+    private readonly tenantRepo: Repository<TenantEntity>,
     private readonly discountsService: DiscountsService,
     private readonly dataSource: DataSource,
   ) {}
@@ -49,6 +52,9 @@ export class OrdersService {
       if (existing) return existing;
     }
 
+    const tenant = await this.tenantRepo.findOne({ where: { id: tenantId } });
+    const currency = tenant?.defaultCurrency ?? 'USD';
+
     const order = this.orderRepo.create({
       tenantId,
       branchId: dto.branch_id,
@@ -56,6 +62,7 @@ export class OrdersService {
       notes: dto.notes ?? null,
       clientEventId: dto.client_event_id ?? null,
       status: 'draft',
+      currency,
       subtotalAmount: 0,
       discountAmount: 0,
       taxAmount: 0,
@@ -75,18 +82,25 @@ export class OrdersService {
   ): Promise<OrderItemEntity> {
     const order = await this.findDraftOrThrow(tenantId, orderId);
 
-    const product = await this.productRepo.findOne({
-      where: { id: dto.product_id, tenantId },
-    });
-    if (!product) throw new NotFoundException('Product not found');
+    let product = null;
+    if (dto.product_id) {
+      product = await this.productRepo.findOne({
+        where: { id: dto.product_id, tenantId },
+      });
+      if (!product) throw new NotFoundException('Product not found');
+    } else if (!dto.description) {
+      throw new BadRequestException('Either product_id or description is required');
+    }
 
     const item = this.itemRepo.create({
       orderId,
-      productId: dto.product_id,
+      productId: dto.product_id ?? null,
+      description: dto.description ?? null,
+      manualTaxRate: dto.manual_tax_rate ?? 0,
       quantity: dto.quantity,
-      unitPrice: product.price,
-      productNameSnapshot: product.name,
-      skuSnapshot: product.sku,
+      unitPrice: product ? product.price : (dto.unit_price ?? 0),
+      productNameSnapshot: product?.name ?? dto.description ?? null,
+      skuSnapshot: product?.sku ?? null,
       lineSubtotal: 0,
       lineDiscountAmount: 0,
       orderDiscountShare: 0,

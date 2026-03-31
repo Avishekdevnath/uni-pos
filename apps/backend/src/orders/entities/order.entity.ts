@@ -12,6 +12,7 @@ import {
 import { TenantEntity } from '../../database/entities/tenant.entity';
 import { BranchEntity } from '../../database/entities/branch.entity';
 import { UserEntity } from '../../users/entities/user.entity/user.entity';
+import { CustomerEntity } from '../../customers/entities/customer.entity';
 import { decimalTransformer } from '../../common/transformers/decimal.transformer';
 import { OrderItemEntity } from './order-item.entity';
 import { OrderDiscountEntity } from './order-discount.entity';
@@ -47,15 +48,18 @@ export class OrderEntity {
   @Column({ name: 'customer_id', type: 'uuid', nullable: true })
   customerId!: string | null;
 
-  @ManyToOne(() => UserEntity, { onDelete: 'RESTRICT', nullable: true })
+  @ManyToOne(() => CustomerEntity, { onDelete: 'SET NULL', nullable: true })
   @JoinColumn({ name: 'customer_id' })
-  customer!: UserEntity | null;
+  customer!: CustomerEntity | null;
 
   @Column({ name: 'order_number', type: 'varchar', length: 64, nullable: true })
   orderNumber!: string | null;
 
   @Column({ type: 'varchar', length: 32, default: 'draft' })
   status!: string;
+
+  @Column({ type: 'varchar', length: 16, default: 'USD' })
+  currency!: string;
 
   @Column({
     name: 'subtotal_amount',

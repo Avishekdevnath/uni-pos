@@ -32,9 +32,9 @@ export class JwtAuthGuard implements CanActivate {
     }
 
     try {
-      request.user = await this.jwtService.verifyAsync<AuthUserPayload>(token, {
-        secret: this.configService.get<string>('JWT_SECRET') ?? 'replace-me',
-      });
+      const secret = this.configService.get<string>('JWT_SECRET');
+      if (!secret) throw new Error('JWT_SECRET environment variable is required');
+      request.user = await this.jwtService.verifyAsync<AuthUserPayload>(token, { secret });
     } catch {
       throw new UnauthorizedException('Invalid or expired token');
     }

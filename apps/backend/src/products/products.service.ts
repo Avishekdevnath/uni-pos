@@ -149,6 +149,14 @@ export class ProductsService {
       product.cost = dto.cost;
     }
 
+    if (dto.emoji !== undefined) {
+      product.emoji = dto.emoji ?? null;
+    }
+
+    if (dto.image_url !== undefined) {
+      product.imageUrl = dto.image_url ?? null;
+    }
+
     return this.productsRepository.save(product);
   }
 

@@ -40,6 +40,9 @@ export class BranchEntity {
   @Column({ type: 'varchar', length: 32, default: 'active' })
   status!: string;
 
+  @Column({ name: 'branch_settings', type: 'jsonb', default: {} })
+  branchSettings!: Record<string, unknown>;
+
   @CreateDateColumn({ name: 'created_at' })
   createdAt!: Date;
 

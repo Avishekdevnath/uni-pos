@@ -24,6 +24,8 @@ import { PlatformModule } from './platform/platform.module';
 import { ReceiptsModule } from './receipts/receipts.module';
 import { BranchGroupsModule } from './branch-groups/branch-groups.module';
 import { PricingModule } from './pricing/pricing.module';
+import { CustomersModule } from './customers/customers.module';
+import { ReportsModule } from './reports/reports.module';
 import { HealthController } from './health/health.controller';
 
 @Module({
@@ -53,6 +55,8 @@ import { HealthController } from './health/health.controller';
     ReceiptsModule,
     BranchGroupsModule,
     PricingModule,
+    CustomersModule,
+    ReportsModule,
   ],
   controllers: [AppController, HealthController],
   providers: [

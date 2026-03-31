@@ -5,7 +5,7 @@ export class AddTenantSettings1742860000000 implements MigrationInterface {
 
   public async up(queryRunner: QueryRunner): Promise<void> {
     await queryRunner.query(`
-      CREATE TABLE "tenant_settings" (
+      CREATE TABLE IF NOT EXISTS "tenant_settings" (
         "id"                        uuid NOT NULL DEFAULT uuid_generate_v4(),
         "tenant_id"                 uuid NOT NULL,
         "store_name"                character varying(255),

@@ -1,4 +1,4 @@
-import { Controller, Get, Req, UseGuards } from '@nestjs/common';
+import { Body, Controller, Get, Param, Patch, ParseUUIDPipe, Req, UseGuards } from '@nestjs/common';
 import { ApiBearerAuth, ApiOkResponse, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { Request } from 'express';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
@@ -26,6 +26,20 @@ export class BranchesController {
     return {
       status: 'success',
       data: await this.branchesService.list(request.user!.tenantId),
+    };
+  }
+
+  @Patch(':id/settings')
+  @RequirePermission('branches:read')
+  @ApiOperation({ summary: 'Update branch settings (receipt config, display prefs)' })
+  async updateSettings(
+    @Req() request: RequestWithUser,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() body: Record<string, unknown>,
+  ) {
+    return {
+      status: 'success',
+      data: await this.branchesService.updateSettings(request.user!.tenantId, id, body),
     };
   }
 }

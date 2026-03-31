@@ -32,6 +32,8 @@ import { BranchGroupMemberEntity } from '../branch-groups/entities/branch-group-
 import { BranchProductPriceEntity } from '../pricing/entities/branch-product-price.entity';
 import { StockTransferEntity } from '../transfers/entities/stock-transfer.entity';
 import { StockTransferItemEntity } from '../transfers/entities/stock-transfer-item.entity';
+import { CustomerEntity } from '../customers/entities/customer.entity';
+import { CustomerNoteEntity } from '../customers/entities/customer-note.entity';
 
 @Module({
   imports: [
@@ -74,6 +76,8 @@ import { StockTransferItemEntity } from '../transfers/entities/stock-transfer-it
               BranchProductPriceEntity,
               StockTransferEntity,
               StockTransferItemEntity,
+              CustomerEntity,
+              CustomerNoteEntity,
             ],
             synchronize: true,
           };

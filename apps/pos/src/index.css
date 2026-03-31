@@ -1,8 +1,291 @@
+@import '@fontsource/inter/400.css';
+@import '@fontsource/inter/500.css';
+@import '@fontsource/inter/600.css';
+@import '@fontsource/inter/700.css';
+@import '@fontsource/jetbrains-mono/400.css';
+@import '@fontsource/jetbrains-mono/500.css';
+@import '@fontsource/jetbrains-mono/600.css';
+@import '@fontsource/playfair-display/400.css';
+@import '@fontsource/playfair-display/600.css';
+@import '@fontsource/playfair-display/700.css';
+@import '@fontsource/dm-sans/300.css';
+@import '@fontsource/dm-sans/400.css';
+@import '@fontsource/dm-sans/500.css';
+@import '@fontsource/dm-sans/600.css';
+@import '@fontsource/dm-mono/400.css';
+@import '@fontsource/dm-mono/500.css';
+
+@import 'tailwindcss';
+@import './theme.css';
+
+:root {
+  --bg: #0a0c10;
+  --surface: #111318;
+  --surface2: #181c24;
+  --surface3: #1e2330;
+  --accent: #c9a84c;
+  --accent-light: #e8c97a;
+  --accent-dim: rgba(201, 168, 76, 0.15);
+  --green: #3ecf8e;
+  --green-dim: rgba(62, 207, 142, 0.12);
+  --red: #f06060;
+  --red-dim: rgba(240, 96, 96, 0.12);
+  --amber: #fbbf24;
+  --blue: #5b9cf6;
+  --blue-dim: rgba(91, 156, 246, 0.12);
+  --text1: #f0ece4;
+  --text2: #8a8f9e;
+  --text3: #555c6e;
+  --border: rgba(255, 255, 255, 0.07);
+  --border2: rgba(255, 255, 255, 0.12);
+  --bg-glow: rgba(201, 168, 76, 0.06);
+  --scrollbar-thumb: #1e2330;
+  --scrollbar-thumb-hover: rgba(148, 163, 184, 0.3);
+  --card-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+  --button-text: #0a0c10;
+  --font-serif: 'Playfair Display', Georgia, serif;
+  --font-sans: 'DM Sans', system-ui, sans-serif;
+  --font-mono: 'DM Mono', 'JetBrains Mono', monospace;
+  color: var(--text1);
+  font-family: var(--font-sans);
+  color-scheme: dark;
+}
+
+[data-theme='dark'] {
+  --bg: #0a0c10;
+  --surface: #111318;
+  --surface2: #181c24;
+  --surface3: #1e2330;
+  --accent: #c9a84c;
+  --accent-light: #e8c97a;
+  --accent-dim: rgba(201, 168, 76, 0.15);
+  --green: #3ecf8e;
+  --green-dim: rgba(62, 207, 142, 0.12);
+  --red: #f06060;
+  --red-dim: rgba(240, 96, 96, 0.12);
+  --amber: #fbbf24;
+  --blue: #5b9cf6;
+  --blue-dim: rgba(91, 156, 246, 0.12);
+  --text1: #f0ece4;
+  --text2: #8a8f9e;
+  --text3: #555c6e;
+  --border: rgba(255, 255, 255, 0.07);
+  --border2: rgba(255, 255, 255, 0.12);
+  --bg-glow: rgba(201, 168, 76, 0.06);
+  --scrollbar-thumb: #1e2330;
+  --scrollbar-thumb-hover: rgba(148, 163, 184, 0.3);
+  --card-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+  --button-text: #0a0c10;
+  color-scheme: dark;
+}
+
+[data-theme='light'] {
+  --bg: #eef3f8;
+  --surface: #ffffff;
+  --surface2: #f6f9fc;
+  --surface3: #e7eef7;
+  --accent: #1d4ed8;
+  --accent-light: #2563eb;
+  --accent-dim: rgba(37, 99, 235, 0.12);
+  --green: #059669;
+  --green-dim: rgba(5, 150, 105, 0.12);
+  --red: #dc2626;
+  --red-dim: rgba(220, 38, 38, 0.12);
+  --amber: #d97706;
+  --blue: #2563eb;
+  --blue-dim: rgba(37, 99, 235, 0.12);
+  --text1: #0f172a;
+  --text2: #475569;
+  --text3: #64748b;
+  --border: rgba(15, 23, 42, 0.08);
+  --border2: rgba(15, 23, 42, 0.14);
+  --bg-glow: rgba(37, 99, 235, 0.12);
+  --scrollbar-thumb: rgba(100, 116, 139, 0.3);
+  --scrollbar-thumb-hover: rgba(71, 85, 105, 0.42);
+  --card-shadow: 0 24px 60px rgba(15, 23, 42, 0.12);
+  --button-text: #ffffff;
+  color-scheme: light;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#app {
+  height: 100%;
+}
+
+html {
+  background: var(--bg);
+}
+
 body {
-  font-family:
-    -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial,
-    sans-serif;
-  margin: auto;
-  max-width: 38rem;
+  margin: 0;
+  background:
+    radial-gradient(circle at top, var(--bg-glow), transparent 32%),
+    var(--bg);
+  color: var(--text1);
+  font-family: var(--font-sans);
+  overflow: hidden;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+button,
+input,
+textarea,
+select {
+  font: inherit;
+}
+
+button {
+  cursor: pointer;
+}
+
+button:disabled {
+  cursor: not-allowed;
+}
+
+code {
+  font-family: var(--font-mono);
+}
+
+::selection {
+  background: var(--accent-dim);
+  color: var(--text1);
+}
+
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--scrollbar-thumb);
+  border-radius: 999px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--scrollbar-thumb-hover);
+}
+
+.drag-region {
+  -webkit-app-region: drag;
+}
+
+.no-drag,
+.no-drag * {
+  -webkit-app-region: no-drag;
+}
+
+/* Legacy auth styles still used by login-form.tsx while the shell uses Tailwind. */
+.center-screen {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 100%;
   padding: 2rem;
+}
+
+.card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 1rem;
+  box-shadow: var(--card-shadow);
+}
+
+.login-card {
+  width: min(100%, 24rem);
+  padding: 1.5rem;
+}
+
+.login-card h1 {
+  margin: 0 0 0.5rem;
+  font-size: 1.25rem;
+}
+
+.login-card code {
+  color: var(--accent);
+  background: var(--surface2);
+  border-radius: 0.375rem;
+  padding: 0.125rem 0.25rem;
+}
+
+.muted {
+  color: var(--text2);
+}
+
+.stack {
+  display: flex;
+  flex-direction: column;
+  gap: 0.875rem;
+}
+
+.stack label {
+  display: flex;
+  flex-direction: column;
+  gap: 0.375rem;
+  color: var(--text2);
+  font-size: 0.875rem;
+}
+
+.stack input {
+  width: 100%;
+  border: 1px solid var(--border2);
+  border-radius: 0.75rem;
+  background: var(--surface2);
+  color: var(--text1);
+  padding: 0.75rem 0.875rem;
+  outline: none;
+}
+
+.stack input:focus {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-dim);
+}
+
+.stack button {
+  border: 0;
+  border-radius: 0.75rem;
+  background: var(--accent);
+  color: var(--button-text);
+  font-weight: 700;
+  padding: 0.75rem 1rem;
+}
+
+.stack button:disabled {
+  opacity: 0.7;
+}
+
+.error {
+  margin: 0;
+  color: var(--red);
+}
+
+/* Toast animation */
+@keyframes toastIn {
+  from { opacity: 0; transform: translateX(16px); }
+  to   { opacity: 1; transform: translateX(0);    }
+}
+
+/* Modal animation */
+@keyframes modalIn {
+  from { opacity: 0; transform: scale(0.96) translateY(8px); }
+  to   { opacity: 1; transform: scale(1)    translateY(0);   }
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
+/* Reduced motion */
+@media (prefers-reduced-motion: reduce) {
+  * { animation-duration: 0.01ms !important; transition-duration: 0.01ms !important; }
 }

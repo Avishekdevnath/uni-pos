@@ -1,3 +1,4 @@
+import React from 'react';
 import { useAuth } from '../hooks/use-auth';
 import { LoginForm } from './login-form';
 import { TerminalHome } from './terminal-home';

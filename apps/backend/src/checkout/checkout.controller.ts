@@ -15,6 +15,8 @@ import {
 } from '@nestjs/swagger';
 import { Request } from 'express';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { PermissionGuard } from '../rbac/guards/permission.guard';
+import { RequirePermission } from '../rbac/decorators/require-permission.decorator';
 import { AuthUserPayload } from '../auth/interfaces/auth-user-payload.interface';
 import { CompleteOrderDto } from '../orders/dto/complete-order.dto';
 import { CancelOrderDto } from '../orders/dto/cancel-order.dto';
@@ -25,13 +27,14 @@ type RequestWithUser = Request & {
 };
 
 @Controller('orders')
-@UseGuards(JwtAuthGuard)
+@UseGuards(JwtAuthGuard, PermissionGuard)
 @ApiTags('checkout')
 @ApiBearerAuth()
 export class CheckoutController {
   constructor(private readonly checkoutService: CheckoutService) {}
 
   @Post(':id/complete')
+  @RequirePermission('pos:sell')
   @ApiOperation({ summary: 'Complete an order (calculate totals, record payments, deduct stock)' })
   @ApiParam({ name: 'id', description: 'Order UUID' })
   @ApiOkResponse({ description: 'Completed order' })
@@ -48,6 +51,7 @@ export class CheckoutController {
   }
 
   @Post(':id/cancel')
+  @RequirePermission('orders:cancel')
   @ApiOperation({ summary: 'Cancel a draft or completed order' })
   @ApiParam({ name: 'id', description: 'Order UUID' })
   @ApiOkResponse({ description: 'Cancelled order' })

@@ -157,7 +157,7 @@ export class PlatformTenantsService {
     };
 
     const accessToken = this.jwtService.sign(tokenPayload, {
-      secret: process.env.JWT_SECRET ?? 'replace-me',
+      secret: process.env.JWT_SECRET ?? (() => { throw new Error('JWT_SECRET environment variable is required'); })(),
       expiresIn: '1h',
     });
 

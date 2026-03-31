@@ -1,0 +1,17 @@
+:root {
+  --brand-primary: #7c3aed;
+  --brand-primary-dim: rgba(124, 58, 237, 0.10);
+  --brand-secondary: #fbbf24;
+  --brand-secondary-dim: rgba(251, 191, 36, 0.10);
+  --brand-bg: #181028;
+  --brand-surface: #221a36;
+  --brand-surface2: #2d2347;
+  --brand-surface3: #3a2d5c;
+  --brand-text1: #f3e8ff;
+  --brand-text2: #bda4e6;
+  --brand-text3: #6d4e9e;
+  --brand-border: rgba(255,255,255,0.08);
+  --brand-border2: rgba(255,255,255,0.16);
+}
+
+/* Example usage: override Tailwind colors in index.css or use as utility classes */

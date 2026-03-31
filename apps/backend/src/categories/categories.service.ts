@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { CreateCategoryDto } from './dto/create-category.dto';
@@ -42,6 +42,9 @@ export class CategoriesService {
     const category = await this.ensureCategoryExists(tenantId, id);
 
     if (dto.parent_id) {
+      if (dto.parent_id === id) {
+        throw new BadRequestException('A category cannot be its own parent');
+      }
       await this.ensureCategoryExists(tenantId, dto.parent_id);
       category.parentId = dto.parent_id;
     }

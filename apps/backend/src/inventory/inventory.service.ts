@@ -74,9 +74,10 @@ export class InventoryService {
         .andWhere('bal.on_hand_qty <= bpc.low_stock_threshold');
     }
 
+    const pageSize = Math.min(query.page_size ?? 20, 500);
     qb.orderBy('product.name', 'ASC')
-      .skip((query.page - 1) * query.page_size)
-      .take(query.page_size);
+      .skip((query.page - 1) * pageSize)
+      .take(pageSize);
 
     return qb.getMany();
   }
@@ -106,7 +107,8 @@ export class InventoryService {
       qb.andWhere('m.createdAt <= :to', { to: query.to });
     }
 
-    qb.skip((query.page - 1) * query.page_size).take(query.page_size);
+    const movPageSize = Math.min(query.page_size ?? 20, 500);
+    qb.skip((query.page - 1) * movPageSize).take(movPageSize);
 
     return qb.getMany();
   }
@@ -287,7 +289,40 @@ export class InventoryService {
     const lowStockEvents: LowStockEventPayload[] = [];
 
     for (const item of items) {
-      // 1. Create movement record
+      // 0. Idempotency: skip if already deducted for this order+product
+      const existing = await manager.findOne(InventoryMovementEntity, {
+        where: { orderId: item.orderId, productId: item.productId, movementType: 'sale_out' },
+      });
+      if (existing) continue;
+
+      // 1. Pessimistic write lock to prevent concurrent over-deduction
+      const balance = await manager
+        .getRepository(InventoryBalanceEntity)
+        .createQueryBuilder('bal')
+        .setLock('pessimistic_write')
+        .where('bal.tenantId = :tenantId AND bal.branchId = :branchId AND bal.productId = :productId', {
+          tenantId, branchId, productId: item.productId,
+        })
+        .getOne();
+
+      const currentQty = balance?.onHandQty ?? 0;
+      if (currentQty - item.quantity < 0) {
+        throw new BadRequestException(
+          `Insufficient stock for product ${item.productId}. Available: ${currentQty}`,
+        );
+      }
+
+      // 2. Update balance
+      await manager.query(
+        `INSERT INTO inventory_balances (tenant_id, branch_id, product_id, on_hand_qty, updated_at)
+         VALUES ($1, $2, $3, $4, NOW())
+         ON CONFLICT (tenant_id, branch_id, product_id)
+         DO UPDATE SET on_hand_qty = inventory_balances.on_hand_qty + $4,
+                       updated_at = NOW()`,
+        [tenantId, branchId, item.productId, -item.quantity],
+      );
+
+      // 3. Record movement
       const movement = manager.create(InventoryMovementEntity, {
         tenantId,
         branchId,
@@ -298,37 +333,20 @@ export class InventoryService {
       });
       await manager.save(movement);
 
-      // 2. Atomic balance upsert with zero-stock guard
-      const result = await manager.query(
-        `INSERT INTO inventory_balances (tenant_id, branch_id, product_id, on_hand_qty, updated_at)
-         VALUES ($1, $2, $3, $4, NOW())
-         ON CONFLICT (tenant_id, branch_id, product_id)
-         DO UPDATE SET on_hand_qty = inventory_balances.on_hand_qty + $4,
-                       updated_at = NOW()
-         WHERE inventory_balances.on_hand_qty + $4 >= 0`,
-        [tenantId, branchId, item.productId, -item.quantity],
-      );
-
-      if (result[1] === 0) {
-        throw new BadRequestException(
-          `Insufficient stock for product ${item.productId}`,
-        );
-      }
-
-      // 3. Check for low stock threshold
+      // 4. Check for low stock threshold
       const config = await manager.findOne(BranchProductConfigEntity, {
         where: { tenantId, branchId, productId: item.productId },
       });
       if (config?.lowStockThreshold != null) {
-        const balance = await manager.findOne(InventoryBalanceEntity, {
+        const updated = await manager.findOne(InventoryBalanceEntity, {
           where: { tenantId, branchId, productId: item.productId },
         });
-        if (balance && balance.onHandQty <= config.lowStockThreshold) {
+        if (updated && updated.onHandQty <= config.lowStockThreshold) {
           lowStockEvents.push({
             tenantId,
             branchId,
             productId: item.productId,
-            currentStock: balance.onHandQty,
+            currentStock: updated.onHandQty,
             threshold: config.lowStockThreshold,
           });
         }

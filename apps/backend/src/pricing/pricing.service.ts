@@ -23,15 +23,13 @@ export class PricingService {
     tenantId: string,
     items: PriceItemDto[],
   ): Promise<BranchProductPriceEntity[]> {
-    const records = items.map((item) =>
-      this.priceRepo.create({
-        branchId,
-        tenantId,
-        productId: item.product_id,
-        price: item.price,
-        cost: item.cost ?? null,
-      }),
-    );
+    const records = items.map((item) => ({
+      branchId,
+      tenantId,
+      productId: item.product_id,
+      price: item.price,
+      cost: item.cost ?? null,
+    }));
 
     await this.priceRepo.upsert(records, {
       conflictPaths: ['branchId', 'productId'],

@@ -3,6 +3,7 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 import { AuthModule } from '../auth/auth.module';
 import { DiscountsModule } from '../discounts/discounts.module';
 import { ProductEntity } from '../products/entities/product.entity';
+import { TenantEntity } from '../database/entities/tenant.entity';
 import { OrderDiscountEntity } from './entities/order-discount.entity';
 import { OrderItemTaxEntity } from './entities/order-item-tax.entity';
 import { OrderItemEntity } from './entities/order-item.entity';
@@ -20,6 +21,7 @@ import { OrdersService } from './orders.service';
       OrderDiscountEntity,
       OrderNumberSequenceEntity,
       ProductEntity,
+      TenantEntity,
     ]),
     AuthModule,
     DiscountsModule,

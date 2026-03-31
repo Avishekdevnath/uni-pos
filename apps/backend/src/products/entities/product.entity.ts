@@ -74,6 +74,12 @@ export class ProductEntity {
   @Column({ type: 'varchar', length: 32, default: 'active' })
   status!: string;
 
+  @Column({ type: 'varchar', length: 16, nullable: true })
+  emoji!: string | null;
+
+  @Column({ name: 'image_url', type: 'text', nullable: true })
+  imageUrl!: string | null;
+
   @CreateDateColumn({ name: 'created_at' })
   createdAt!: Date;
 
