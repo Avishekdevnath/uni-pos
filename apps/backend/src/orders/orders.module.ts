@@ -3,6 +3,7 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 import { AuthModule } from '../auth/auth.module';
 import { RbacModule } from '../rbac/rbac.module';
 import { DiscountsModule } from '../discounts/discounts.module';
+import { TaxModule } from '../tax/tax.module';
 import { ProductEntity } from '../products/entities/product.entity';
 import { TenantEntity } from '../database/entities/tenant.entity';
 import { OrderDiscountEntity } from './entities/order-discount.entity';
@@ -27,6 +28,7 @@ import { OrdersService } from './orders.service';
     AuthModule,
     RbacModule,
     DiscountsModule,
+    TaxModule,
   ],
   controllers: [OrdersController],
   providers: [OrdersService],

@@ -1,4 +1,5 @@
 import { Module } from '@nestjs/common';
+import { ConfigModule, ConfigService } from '@nestjs/config';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { JwtModule } from '@nestjs/jwt';
 import { PlatformAdminEntity } from './entities/platform-admin.entity';
@@ -22,7 +23,15 @@ import { AuthModule } from '../auth/auth.module';
       BranchEntity,
       RoleEntity,
     ]),
-    JwtModule.register({}),
+    JwtModule.registerAsync({
+      imports: [ConfigModule],
+      inject: [ConfigService],
+      useFactory: (configService: ConfigService) => {
+        const secret = configService.get<string>('PLATFORM_JWT_SECRET');
+        if (!secret) throw new Error('PLATFORM_JWT_SECRET environment variable is required');
+        return { secret, signOptions: { expiresIn: '1d' } };
+      },
+    }),
     AuthModule,
   ],
   controllers: [PlatformAuthController, PlatformTenantsController],

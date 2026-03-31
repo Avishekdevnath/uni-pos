@@ -1,12 +1,13 @@
 import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { AuthModule } from '../auth/auth.module';
+import { RbacModule } from '../rbac/rbac.module';
 import { BranchEntity } from '../database/entities/branch.entity';
 import { BranchesController } from './branches.controller';
 import { BranchesService } from './branches.service';
 
 @Module({
-  imports: [TypeOrmModule.forFeature([BranchEntity]), AuthModule],
+  imports: [TypeOrmModule.forFeature([BranchEntity]), AuthModule, RbacModule],
   controllers: [BranchesController],
   providers: [BranchesService],
   exports: [BranchesService],

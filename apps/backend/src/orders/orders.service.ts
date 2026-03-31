@@ -35,6 +35,7 @@ export class OrdersService {
     @InjectRepository(TenantEntity)
     private readonly tenantRepo: Repository<TenantEntity>,
     private readonly discountsService: DiscountsService,
+    private readonly taxService: TaxService,
     private readonly dataSource: DataSource,
   ) {}
 

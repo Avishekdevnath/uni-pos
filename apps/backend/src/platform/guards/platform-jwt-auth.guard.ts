@@ -24,9 +24,7 @@ export class PlatformJwtAuthGuard implements CanActivate {
 
     let payload: PlatformAdminPayload;
     try {
-      payload = await this.jwtService.verifyAsync<PlatformAdminPayload>(token, {
-        secret: process.env.PLATFORM_JWT_SECRET ?? (() => { throw new Error('PLATFORM_JWT_SECRET environment variable is required'); })(),
-      });
+      payload = await this.jwtService.verifyAsync<PlatformAdminPayload>(token);
     } catch {
       throw new UnauthorizedException('Invalid or expired token');
     }
