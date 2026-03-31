@@ -1,6 +1,7 @@
 import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { AuthModule } from '../auth/auth.module';
+import { RbacModule } from '../rbac/rbac.module';
 import { TaxGroupEntity } from './entities/tax-group.entity';
 import { TaxConfigEntity } from './entities/tax-config.entity';
 import { BranchEntity } from '../database/entities/branch.entity';
@@ -12,6 +13,7 @@ import { TaxService } from './tax.service';
   imports: [
     TypeOrmModule.forFeature([TaxGroupEntity, TaxConfigEntity, BranchEntity]),
     AuthModule,
+    RbacModule,
   ],
   controllers: [TaxGroupsController, TaxConfigsController],
   providers: [TaxService],

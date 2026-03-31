@@ -1,6 +1,7 @@
 import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { AuthModule } from '../auth/auth.module';
+import { RbacModule } from '../rbac/rbac.module';
 import { CategoryEntity } from '../categories/entities/category.entity';
 import { CategoriesModule } from '../categories/categories.module';
 import { CloudinaryModule } from '../cloudinary/cloudinary.module';
@@ -12,6 +13,7 @@ import { ProductsService } from './products.service';
   imports: [
     TypeOrmModule.forFeature([ProductEntity, CategoryEntity]),
     AuthModule,
+    RbacModule,
     CategoriesModule,
     CloudinaryModule,
   ],
