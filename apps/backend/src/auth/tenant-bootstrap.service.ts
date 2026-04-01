@@ -1,4 +1,4 @@
-import { ConflictException, Injectable } from '@nestjs/common';
+import { ConflictException, Injectable, InternalServerErrorException } from '@nestjs/common';
 import { DataSource, EntityManager } from 'typeorm';
 import { TenantEntity } from '../database/entities/tenant.entity';
 import { BranchEntity } from '../database/entities/branch.entity';
@@ -152,6 +152,12 @@ export class TenantBootstrapService {
       // ------------------------------------------------------------------
       const allPerms = await manager.find(PermissionEntity);
       const permByCode = new Map(allPerms.map((p) => [p.code, p]));
+      const missingPermissionCodes = ALL_PERMISSIONS.filter((code) => !permByCode.has(code));
+      if (missingPermissionCodes.length > 0) {
+        throw new InternalServerErrorException(
+          `RBAC permissions are not seeded. Missing codes: ${missingPermissionCodes.join(', ')}`,
+        );
+      }
 
       // ------------------------------------------------------------------
       // 4. Create 6 system roles for this tenant
@@ -179,8 +185,9 @@ export class TenantBootstrapService {
         for (const code of codes) {
           const perm = permByCode.get(code);
           if (!perm) {
-            // Permissions may not be seeded yet — skip gracefully
-            continue;
+            throw new InternalServerErrorException(
+              `Permission not found while bootstrapping tenant role '${roleSlug}': ${code}`,
+            );
           }
           await manager
             .createQueryBuilder()

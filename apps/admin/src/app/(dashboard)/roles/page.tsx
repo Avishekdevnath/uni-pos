@@ -1,6 +1,7 @@
 'use client';
 import { useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { useAuth } from '@/hooks/use-auth';
 import { fetchRoles, fetchAllPermissions, fetchRolePermissions } from '@/lib/api';
 import { RolesList } from '@/components/features/roles/roles-list';
 import { PermissionEditor } from '@/components/features/roles/permission-editor';
@@ -9,22 +10,29 @@ import { PageHeader } from '@/components/shared/page-header';
 export default function RolesPage() {
   const [selectedRoleId, setSelectedRoleId] = useState<string | null>(null);
   const queryClient = useQueryClient();
+  const { isAuthenticated, isLoading: authLoading } = useAuth();
+  const canFetchRoles = isAuthenticated && !authLoading;
 
   const { data: roles = [], isLoading: rolesLoading } = useQuery({
     queryKey: ['roles'],
     queryFn: fetchRoles,
+    enabled: canFetchRoles,
+    retry: false,
   });
 
   const { data: allPermissions = [] } = useQuery({
     queryKey: ['all-permissions'],
     queryFn: fetchAllPermissions,
     staleTime: Infinity,
+    enabled: canFetchRoles,
+    retry: false,
   });
 
   const { data: roleData, isLoading: rolePermsLoading } = useQuery({
     queryKey: ['role-permissions', selectedRoleId],
     queryFn: () => fetchRolePermissions(selectedRoleId!),
-    enabled: !!selectedRoleId,
+    enabled: canFetchRoles && !!selectedRoleId,
+    retry: false,
   });
 
   function handleSaved() {

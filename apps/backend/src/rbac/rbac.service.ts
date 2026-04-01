@@ -2,7 +2,47 @@ import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { RolePermissionEntity } from './entities/role-permission.entity';
+import { RoleEntity } from './entities/role.entity';
 import { TenantEntity } from '../database/entities/tenant.entity';
+
+// Standard permission matrix for system roles (fallback for broken tenants)
+const SYSTEM_ROLE_PERMISSIONS: Record<string, string[]> = {
+  owner: ['*'],
+  senior_manager: [
+    'products:create', 'products:read', 'products:update', 'products:delete',
+    'categories:create', 'categories:read', 'categories:update', 'categories:delete',
+    'tax:create', 'tax:read', 'tax:update', 'tax:delete',
+    'discounts:create', 'discounts:read', 'discounts:update', 'discounts:delete', 'discounts:apply',
+    'inventory:read', 'inventory:receive', 'inventory:adjust',
+    'orders:create', 'orders:read', 'orders:cancel',
+    'pos:sell', 'pos:void', 'pos:open_drawer',
+    'staff:read',
+    'branches:read',
+    'audit:read', 'reports:read',
+    'branch_groups:read',
+    'pricing:read', 'pricing:update',
+    'transfers:create', 'transfers:read', 'transfers:receive',
+    'roles:manage',
+  ],
+  manager: [
+    'products:read', 'categories:read', 'discounts:read', 'discounts:apply',
+    'inventory:read', 'inventory:receive', 'inventory:adjust',
+    'orders:create', 'orders:read', 'orders:cancel',
+    'pos:sell', 'pos:void', 'pos:open_drawer',
+    'branches:read', 'audit:read', 'reports:read',
+    'pricing:read',
+    'transfers:create', 'transfers:read',
+  ],
+  cashier: [
+    'orders:create', 'pos:sell', 'pos:void', 'pos:open_drawer',
+  ],
+  senior_staff: [
+    'inventory:receive', 'orders:create', 'pos:sell', 'pos:void',
+  ],
+  staff: [
+    'orders:create', 'pos:sell',
+  ],
+};
 
 interface CacheEntry {
   codes: string[];
@@ -20,6 +60,8 @@ export class RbacService {
   constructor(
     @InjectRepository(RolePermissionEntity)
     private readonly rolePermissionRepo: Repository<RolePermissionEntity>,
+    @InjectRepository(RoleEntity)
+    private readonly roleRepo: Repository<RoleEntity>,
     @InjectRepository(TenantEntity)
     private readonly tenantRepo: Repository<TenantEntity>,
   ) {}
@@ -69,7 +111,18 @@ export class RbacService {
       return cached.codes;
     }
 
-    const codes = await this.getPermissionsForRole(roleId);
+    let codes = await this.getPermissionsForRole(roleId);
+
+    // Backward compatibility: if a system role has no permissions in the database
+    // (can happen if permissions weren't seeded when the tenant was created),
+    // apply the standard permission matrix as a fallback.
+    if (codes.length === 0) {
+      const role = await this.roleRepo.findOne({ where: { id: roleId } });
+      if (role?.isSystem && role.slug && SYSTEM_ROLE_PERMISSIONS[role.slug]) {
+        codes = SYSTEM_ROLE_PERMISSIONS[role.slug];
+      }
+    }
+
     this.roleCache.set(roleId, { codes, expiry: Date.now() + ROLE_CACHE_TTL_MS });
     return codes;
   }
