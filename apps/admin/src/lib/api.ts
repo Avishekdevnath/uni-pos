@@ -25,6 +25,7 @@ import type {
 import type { Order } from "@/types/order";
 import type { Payment } from "@/types/payment";
 import type { AuditLog } from "@/types/audit";
+import type { RoleWithCount, Permission, RoleWithPermissions } from "@/types/role";
 
 // ─── Core ────────────────────────────────────────────────────────────────────
 
@@ -411,4 +412,34 @@ export async function fetchAuditLogs(
     `/audit-logs${toQuery(params)}`,
   );
   return res.data;
+}
+
+// ─── Roles & Permissions ─────────────────────────────────────────────────────
+
+export async function fetchRoles(): Promise<RoleWithCount[]> {
+  const response = await apiRequest<ApiResponse<RoleWithCount[]>>("/roles");
+  return response.data;
+}
+
+export async function fetchAllPermissions(): Promise<Permission[]> {
+  const response = await apiRequest<ApiResponse<Permission[]>>("/roles/permissions");
+  return response.data;
+}
+
+export async function fetchRolePermissions(roleId: string): Promise<RoleWithPermissions> {
+  const response = await apiRequest<ApiResponse<RoleWithPermissions>>(
+    `/roles/${roleId}/permissions`,
+  );
+  return response.data;
+}
+
+export async function updateRolePermissions(
+  roleId: string,
+  permissionCodes: string[],
+): Promise<RoleWithPermissions> {
+  const response = await apiRequest<ApiResponse<RoleWithPermissions>>(
+    `/roles/${roleId}/permissions`,
+    { method: "PUT", body: { permissionCodes } },
+  );
+  return response.data;
 }
