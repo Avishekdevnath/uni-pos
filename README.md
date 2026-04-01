@@ -147,10 +147,116 @@ npx typeorm-ts-node-commonjs migration:run -d src/database/data-source.ts
 # 4. Seed the admin user
 npx ts-node src/database/seeds/seed-admin.ts
 
-# 5. Start the backend
+# 5. (Optional) Seed full demo data
+npx ts-node src/database/seeds/seed-demo.ts
+
+# 6. Start the backend
 cd ../..
 pnpm dev:backend
 ```
+
+## Seeded Dummy Credentials & Demo Data
+
+The backend includes two seed scripts:
+
+- `src/database/seeds/seed-admin.ts` (initial admin/bootstrap seed)
+- `src/database/seeds/seed-demo.ts` (full multi-branch demo organization)
+
+### Dummy Credentials (from seed files)
+
+#### From `seed-admin.ts` — configured via `.env.local`
+
+| Account | Email | Password |
+|---------|-------|----------|
+| Platform Admin | `admin@unipos.com` | `PlatformAdmin123!` |
+| Demo Tenant Owner | `owner@example.com` | `ChangeThisPassword123` |
+
+- Demo Tenant: `Demo Tenant` (slug: `demo-tenant`)
+- Demo Branch: `Main Branch` (code: `MAIN`)
+
+#### From `seed-demo.ts` — all accounts use password: `demo1234`
+
+| Role | Email | Branch |
+|------|-------|--------|
+| Owner | `owner@unimart.demo` | HQ Flagship |
+| Senior Manager | `sr.manager.dhaka@unimart.demo` | HQ Flagship |
+| Senior Manager | `sr.manager.ctg@unimart.demo` | Agrabad |
+| Senior Manager | `sr.manager.sylhet@unimart.demo` | Zindabazar |
+| Manager | `manager.dhkhq@unimart.demo` | HQ Flagship |
+| Manager | `manager.dhkban@unimart.demo` | Banani |
+| Manager | `manager.dhkutt@unimart.demo` | Uttara |
+| Manager | `manager.ctgagr@unimart.demo` | Agrabad |
+| Manager | `manager.ctgnas@unimart.demo` | Nasirabad |
+| Manager | `manager.sylzin@unimart.demo` | Zindabazar |
+| Cashier | `cashier1.dhkhq@unimart.demo` | HQ Flagship |
+| Cashier | `cashier2.dhkhq@unimart.demo` | HQ Flagship |
+| Cashier | `cashier1.dhkban@unimart.demo` | Banani |
+| Cashier | `cashier2.dhkban@unimart.demo` | Banani |
+| Cashier | `cashier1.dhkutt@unimart.demo` | Uttara |
+| Cashier | `cashier2.dhkutt@unimart.demo` | Uttara |
+| Cashier | `cashier1.ctgagr@unimart.demo` | Agrabad |
+| Cashier | `cashier2.ctgagr@unimart.demo` | Agrabad |
+| Cashier | `cashier1.ctgnas@unimart.demo` | Nasirabad |
+| Cashier | `cashier2.ctgnas@unimart.demo` | Nasirabad |
+| Cashier | `cashier1.sylzin@unimart.demo` | Zindabazar |
+| Cashier | `cashier2.sylzin@unimart.demo` | Zindabazar |
+| Senior Staff | `sr.staff.dhkhq@unimart.demo` | HQ Flagship |
+| Senior Staff | `sr.staff.dhkban@unimart.demo` | Banani |
+| Senior Staff | `sr.staff.dhkutt@unimart.demo` | Uttara |
+| Senior Staff | `sr.staff.ctgagr@unimart.demo` | Agrabad |
+| Senior Staff | `sr.staff.ctgnas@unimart.demo` | Nasirabad |
+| Senior Staff | `sr.staff.sylzin@unimart.demo` | Zindabazar |
+| Staff | `staff.dhkhq@unimart.demo` | HQ Flagship |
+| Staff | `staff.dhkban@unimart.demo` | Banani |
+| Staff | `staff.dhkutt@unimart.demo` | Uttara |
+| Staff | `staff.ctgagr@unimart.demo` | Agrabad |
+| Staff | `staff.ctgnas@unimart.demo` | Nasirabad |
+| Staff | `staff.sylzin@unimart.demo` | Zindabazar |
+
+### Seeded Dummy Data (from seed files)
+
+#### `seed-admin.ts`
+- Ensures all RBAC permissions listed in the script (`ALL_PERMISSIONS`)
+- Creates a platform admin user (if missing)
+- Creates demo tenant (default: `Demo Tenant`, slug `demo-tenant`)
+- Creates demo branch (default: `Main Branch`, code `MAIN`)
+- Creates 6 system roles:
+	- `owner`, `senior_manager`, `manager`, `cashier`, `senior_staff`, `staff`
+- Assigns role-permission mappings
+- Creates owner user for the demo tenant (if missing)
+
+#### `seed-demo.ts`
+- Tenant:
+	- `UniMart Holdings` (slug: `unimart-holdings`)
+- Branch groups (3):
+	- `Dhaka Division`, `Chittagong Division`, `Sylhet Division`
+- Branches (6):
+	- `HQ Flagship Store` (`DHK-HQ`)
+	- `Banani Outlet` (`DHK-BAN`)
+	- `Uttara Outlet` (`DHK-UTT`)
+	- `Agrabad Store` (`CTG-AGR`)
+	- `Nasirabad Store` (`CTG-NAS`)
+	- `Zindabazar Store` (`SYL-ZIN`)
+- Users (34 total):
+	- 1 owner
+	- 3 senior managers
+	- 6 managers
+	- 12 cashiers
+	- 6 senior staff
+	- 6 staff
+- Categories (8):
+	- Beverages
+	- Snacks & Confectionery
+	- Dairy & Eggs
+	- Bakery
+	- Personal Care
+	- Household
+	- Frozen Foods
+	- Stationery
+- Products:
+	- 60 demo products with SKU, barcode, price, cost, emoji, and category
+
+> Note: Both seed scripts are idempotent (safe to re-run).
 
 ## Development
 

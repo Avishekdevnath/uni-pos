@@ -60,7 +60,7 @@ export function CustomersPage() {
         <button
           onClick={() => { setSelected(null); setDrawerOpen(true); }}
           className="flex items-center gap-2 px-4 py-2 text-[13px] font-semibold rounded-lg transition-colors"
-          style={{ background: 'var(--accent)', color: 'var(--bg)' }}
+          style={{ background: 'var(--accent)', color: '#ffffff' }}
         >
           + New Customer
         </button>

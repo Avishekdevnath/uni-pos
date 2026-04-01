@@ -21,6 +21,7 @@ interface AppStore {
   setActivePage: (page: AppPage) => void;
   setThemePreference: (preference: ThemePreference) => void;
   toggleTheme: (resolvedTheme: ResolvedTheme) => void;
+  reset: () => void;
 }
 
 const PAGE_STORAGE_KEY = 'uni-pos.active-page';
@@ -53,4 +54,8 @@ export const useAppStore = create<AppStore>((set) => ({
       localStorage.setItem(THEME_STORAGE_KEY, nextThemePreference);
       return { themePreference: nextThemePreference };
     }),
+  reset: () => {
+    localStorage.setItem(PAGE_STORAGE_KEY, 'pos');
+    set({ activePage: 'pos' });
+  },
 }));

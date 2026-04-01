@@ -11,6 +11,7 @@ import {
 } from './lib/theme';
 import { AuthProvider } from './providers/auth-provider';
 import { AppShell } from './components/shell/AppShell';
+import { ErrorBoundary } from './components/shared/ErrorBoundary';
 
 const queryClient = createQueryClient();
 const initialThemePreference = getStoredThemePreference(localStorage);
@@ -25,10 +26,12 @@ applyResolvedTheme(
 
 ReactDOM.createRoot(document.getElementById('app')!).render(
   <React.StrictMode>
-    <QueryClientProvider client={queryClient}>
-      <AuthProvider>
-        <AppShell />
-      </AuthProvider>
-    </QueryClientProvider>
+    <ErrorBoundary>
+      <QueryClientProvider client={queryClient}>
+        <AuthProvider>
+          <AppShell />
+        </AuthProvider>
+      </QueryClientProvider>
+    </ErrorBoundary>
   </React.StrictMode>,
 );

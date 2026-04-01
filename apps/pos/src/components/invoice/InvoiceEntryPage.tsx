@@ -153,7 +153,7 @@ export function InvoiceEntryPage() {
             <span className="text-[9px] uppercase tracking-[.1em] text-text3">Last Invoice #</span>
             <span
               className="font-mono text-[11px] font-bold px-2 py-0.5 rounded"
-              style={{ background: 'var(--accent)', color: '#0a0c10' }}
+              style={{ background: 'var(--accent)', color: '#ffffff' }}
             >{lastInvoiceNo}</span>
           </div>
         </div>
@@ -168,7 +168,7 @@ export function InvoiceEntryPage() {
             <span className="text-[9px] uppercase tracking-[.1em] text-text3">Current Invoice</span>
             <span
               className="font-mono text-[11px] font-bold px-2 py-0.5 rounded"
-              style={{ background: 'var(--accent)', color: '#0a0c10' }}
+              style={{ background: 'var(--accent)', color: '#ffffff' }}
             >{currentInvoice}</span>
           </div>
         </div>
@@ -308,7 +308,7 @@ export function InvoiceEntryPage() {
             <button
               onClick={addRow}
               className="rounded-[7px] px-4 py-2 text-[13px] font-bold cursor-pointer whitespace-nowrap transition-colors"
-              style={{ background: 'var(--accent)', color: '#0a0c10' }}
+              style={{ background: 'var(--accent)', color: '#ffffff' }}
             >+ Add</button>
           </div>
 
@@ -536,7 +536,7 @@ export function InvoiceEntryPage() {
           {/* ── Action buttons ── */}
           <div className="flex flex-shrink-0" style={{ borderTop: '2px solid var(--border2)' }}>
             {([
-              { icon: '🖨', label: 'Print',  onClick: () => checkoutMutation.mutate(), disabled: checkoutMutation.isPending || items.length === 0, bg: 'var(--accent)', color: '#0a0c10' },
+              { icon: '🖨', label: 'Print',  onClick: () => checkoutMutation.mutate(), disabled: checkoutMutation.isPending || items.length === 0, bg: 'var(--accent)', color: '#ffffff' },
               { icon: '📌', label: 'Hold',   onClick: () => {},  disabled: false, bg: 'rgba(59,130,246,0.1)', color: 'var(--blue)' },
               { icon: '⊘',  label: 'Void',   onClick: clearAll,  disabled: false, bg: 'rgba(239,68,68,0.1)', color: 'var(--red)' },
               { icon: '⬡',  label: 'Exit',   onClick: () => {},  disabled: false, bg: 'var(--surface2)', color: 'var(--text2)' },

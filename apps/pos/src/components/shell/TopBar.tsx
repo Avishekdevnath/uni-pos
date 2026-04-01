@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useAppStore, type AppPage } from '../../store/app-store';
 import { useAuth } from '../../hooks/use-auth';
+import { Logo } from '../shared/Logo';
 import {
   getSystemResolvedTheme,
   getThemeToggleCopy,
@@ -47,20 +48,9 @@ export function TopBar() {
       className="drag-region flex items-center justify-between px-7 h-[60px] bg-surface border-b border-border flex-shrink-0"
       style={{ userSelect: 'none' }}
     >
-      {/* Logo — Playfair Display serif, gold mark */}
-      <div className="flex items-center gap-2.5 no-drag">
-        <div
-          className="w-[34px] h-[34px] rounded-lg flex items-center justify-center font-bold text-[16px]"
-          style={{ background: 'var(--accent)', color: 'var(--bg)', fontFamily: 'var(--font-serif)' }}
-        >
-          U
-        </div>
-        <div>
-          <div className="text-[18px] font-semibold text-text1 leading-none" style={{ fontFamily: 'var(--font-serif)', letterSpacing: '0.02em' }}>
-            uniPOS
-          </div>
-          <div className="text-[10px] text-text2 mt-0.5 uppercase tracking-[0.08em]">Billing System</div>
-        </div>
+      {/* Logo */}
+      <div className="no-drag">
+        <Logo size="md" showText={true} />
       </div>
 
       {/* Nav */}

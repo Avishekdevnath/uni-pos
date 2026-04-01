@@ -43,7 +43,17 @@ export interface PosOrder {
   }>;
 }
 
-const TOKEN_KEY = 'uni-pos.pos.access-token';
+export const TOKEN_KEY = 'uni-pos.pos.access-token';
+
+// Called automatically when any API request returns 401 (token expired / invalid).
+// AuthProvider registers its logout function here on mount.
+let _on401Handler: (() => void) | null = null;
+export function register401Handler(fn: () => void) {
+  _on401Handler = fn;
+}
+export function unregister401Handler() {
+  _on401Handler = null;
+}
 const DEFAULT_API_BASE_URL = (import.meta.env.VITE_API_URL as string | undefined) ?? 'http://localhost:8000/api/v1';
 
 export const apiBaseUrl =
@@ -109,6 +119,7 @@ async function apiRequest<T>(path: string, options: ApiRequestOptions = {}): Pro
     ...options,
     headers,
     body: options.body === undefined ? undefined : JSON.stringify(options.body),
+    signal: AbortSignal.timeout(15_000),
   });
 
   const contentType = response.headers.get('content-type') ?? '';
@@ -121,6 +132,10 @@ async function apiRequest<T>(path: string, options: ApiRequestOptions = {}): Pro
         : typeof payload?.error === 'string'
           ? payload.error
           : 'Request failed';
+
+    if (response.status === 401) {
+      _on401Handler?.();
+    }
 
     throw new ApiError(message, response.status, payload);
   }
