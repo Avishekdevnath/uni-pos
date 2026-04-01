@@ -19,6 +19,7 @@ import {
   ShoppingCart,
   Warehouse,
   Shield,
+  ShieldCheck,
 } from 'lucide-react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
@@ -51,7 +52,10 @@ const navGroups = [
   },
   {
     label: 'System',
-    items: [{ href: '/audit-logs', label: 'Audit Logs', icon: Shield }],
+    items: [
+      { href: '/audit-logs', label: 'Audit Logs', icon: Shield },
+      { href: '/roles', label: 'Roles & Permissions', icon: ShieldCheck },
+    ],
   },
 ];
 
