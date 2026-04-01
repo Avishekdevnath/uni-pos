@@ -80,7 +80,7 @@ export function AppHeader() {
               <span className="text-xs text-muted-foreground">{user?.email}</span>
               {user?.role && (
                 <Badge variant="secondary" className="w-fit text-xs capitalize">
-                  {user.role}
+                  {user.role.name}
                 </Badge>
               )}
             </DropdownMenuLabel>

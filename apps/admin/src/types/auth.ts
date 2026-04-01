@@ -2,7 +2,7 @@ export interface User {
   sub: string;
   email: string;
   fullName: string;
-  role: string;
+  role: { id: string; name: string; slug: string } | null;
   tenantId: string;
   defaultBranchId: string;
 }
