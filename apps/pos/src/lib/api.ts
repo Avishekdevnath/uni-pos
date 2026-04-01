@@ -23,6 +23,13 @@ export interface PosProductListResponse {
   };
 }
 
+export interface InventoryBalance {
+  productId?: string;
+  product_id?: string;
+  onHandQty?: number;
+  on_hand_qty?: number;
+}
+
 export interface PosOrder {
   id: string;
   orderNumber: string | null;
@@ -160,6 +167,7 @@ export async function fetchMe(token?: string): Promise<PosMeResponse> {
 
 export async function fetchProducts(params: {
   branchId?: string;
+  categoryId?: string;
   search?: string;
   barcode?: string;
   page?: number;
@@ -168,12 +176,49 @@ export async function fetchProducts(params: {
   const response = await apiRequest<ApiResponse<PosProductListResponse>>(
     `/products${toQuery({
       branch_id: params.branchId,
+      category_id: params.categoryId,
       search: params.search,
       barcode: params.barcode,
       page: params.page,
       page_size: params.pageSize,
     })}`,
   );
+
+  return response.data;
+}
+
+export async function fetchInventoryBalances(params: {
+  branchId: string;
+  search?: string;
+  page?: number;
+  pageSize?: number;
+}): Promise<InventoryBalance[]> {
+  const response = await apiRequest<{ status: string; data: InventoryBalance[] }>(
+    `/inventory/balances${toQuery({
+      branch_id: params.branchId,
+      search: params.search,
+      page: params.page,
+      page_size: params.pageSize,
+    })}`,
+  );
+
+  return response.data;
+}
+
+export async function createStockIn(data: {
+  branch_id: string;
+  description?: string;
+  items: Array<{
+    product_id: string;
+    quantity: number;
+    unit_cost?: number;
+    client_event_id?: string;
+  }>;
+}): Promise<unknown> {
+  const response = await apiRequest<ApiResponse<unknown>>('/inventory/stock-in', {
+    method: 'POST',
+    body: data,
+  });
 
   return response.data;
 }
@@ -240,8 +285,14 @@ export async function fetchReportsSummary(
   _branchId: string,
   date: string,
 ): Promise<ReportsSummary> {
-  const response = await apiRequest<ApiResponse<ReportsSummary>>(`/reports/summary?date=${date}`);
-  return response.data;
+  const response = await apiRequest<ApiResponse<ReportsSummary> | ReportsSummary>(`/reports/summary?date=${date}`);
+
+  // Some backend handlers return payload directly, while others return { data } wrapper.
+  if ('data' in (response as Record<string, unknown>)) {
+    return (response as ApiResponse<ReportsSummary>).data;
+  }
+
+  return response as ReportsSummary;
 }
 
 // ── Customers ────────────────────────────────────────────────

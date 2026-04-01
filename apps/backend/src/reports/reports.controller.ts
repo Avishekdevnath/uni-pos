@@ -17,14 +17,14 @@ export class ReportsController {
   constructor(private readonly reportsService: ReportsService) {}
 
   @Get('summary')
-  @RequirePermission('reports:view')
+  @RequirePermission('reports:read')
   getSummary(@Req() req: RequestWithUser, @Query('date') date?: string) {
     const today = date ?? new Date().toISOString().split('T')[0];
     return this.reportsService.getSummary(req.user!.tenantId, req.user!.defaultBranchId, today);
   }
 
   @Get('revenue')
-  @RequirePermission('reports:view')
+  @RequirePermission('reports:read')
   getRevenue(
     @Req() req: RequestWithUser,
     @Query('from') from: string,
@@ -34,7 +34,7 @@ export class ReportsController {
   }
 
   @Get('payment-methods')
-  @RequirePermission('reports:view')
+  @RequirePermission('reports:read')
   getPaymentMethods(
     @Req() req: RequestWithUser,
     @Query('from') from: string,
@@ -44,7 +44,7 @@ export class ReportsController {
   }
 
   @Get('top-products')
-  @RequirePermission('reports:view')
+  @RequirePermission('reports:read')
   getTopProducts(
     @Req() req: RequestWithUser,
     @Query('from') from: string,
@@ -61,7 +61,7 @@ export class ReportsController {
   }
 
   @Get('hourly')
-  @RequirePermission('reports:view')
+  @RequirePermission('reports:read')
   getHourlyHeatmap(@Req() req: RequestWithUser) {
     return this.reportsService.getHourlyHeatmap(req.user!.tenantId, req.user!.defaultBranchId);
   }

@@ -44,7 +44,10 @@ function NavItem({ icon, label, active, badge, hint, disabled, onClick }: NavIte
 export function Sidebar() {
   const { activePage, setActivePage } = useAppStore();
   const { branch, tenant, logout, permissions } = useAuth();
-  const isManager = permissions.some((p) => p === '*' || p === 'reports:view');
+  const canReadReports = permissions.some((p) => p === '*' || p === 'reports:read');
+  const isManager = permissions.some((p) =>
+    p === '*' || p === 'reports:read' || p === 'products:read' || p === 'inventory:read',
+  );
   const [confirmingLogout, setConfirmingLogout] = useState(false);
 
   const currency = tenant?.defaultCurrency ?? '৳';
@@ -52,7 +55,7 @@ export function Sidebar() {
   const summaryQuery = useQuery({
     queryKey: ['sidebar-summary', branch?.id],
     queryFn: () => fetchReportsSummary(branch!.id, new Date().toISOString().split('T')[0]),
-    enabled: !!branch?.id,
+    enabled: !!branch?.id && canReadReports,
     refetchInterval: 60_000,
   });
 

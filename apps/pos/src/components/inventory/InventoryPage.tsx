@@ -2,19 +2,28 @@ import { useState, useRef } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import {
   fetchProducts,
+  fetchInventoryBalances,
   fetchCategories,
   updateProduct,
+  createStockIn,
   type PosProduct,
 } from '../../lib/api';
 import { useAuth } from '../../hooks/use-auth';
 import { Spinner } from '../shared/Spinner';
 import { Badge } from '../shared/Badge';
 import { EmojiButton } from '../shared/EmojiPicker';
+import { ApiError } from '../../lib/api';
 
 // ── Edit Product Modal ───────────────────────────────────────
 
 interface EditModalProps {
   product: PosProduct;
+  onClose: () => void;
+}
+
+interface StockInModalProps {
+  product: PosProduct;
+  branchId: string;
   onClose: () => void;
 }
 
@@ -165,14 +174,179 @@ function EditProductModal({ product, onClose }: EditModalProps) {
   );
 }
 
+function StockInModal({ product, branchId, onClose }: StockInModalProps) {
+  const queryClient = useQueryClient();
+  const [quantity, setQuantity] = useState('1');
+  const [unitCost, setUnitCost] = useState('');
+  const [note, setNote] = useState('');
+  const [submitError, setSubmitError] = useState<string | null>(null);
+
+  const mutation = useMutation({
+    mutationFn: async () => {
+      if (!branchId) {
+        throw new Error('No active branch selected.');
+      }
+
+      const qty = Number(quantity);
+      if (!Number.isFinite(qty) || qty <= 0) {
+        throw new Error('Quantity must be greater than 0');
+      }
+
+      const cost = Number(unitCost);
+
+      return createStockIn({
+        branch_id: branchId,
+        description: note.trim() || undefined,
+        items: [
+          {
+            product_id: product.id,
+            quantity: qty,
+            unit_cost: Number.isFinite(cost) && cost >= 0 ? cost : undefined,
+          },
+        ],
+      });
+    },
+    onSuccess: () => {
+      setSubmitError(null);
+      queryClient.invalidateQueries({ queryKey: ['inventory'] });
+      queryClient.invalidateQueries({ queryKey: ['inventory-balances', branchId] });
+      onClose();
+    },
+    onError: (error) => {
+      if (error instanceof ApiError) {
+        setSubmitError(`${error.message} (HTTP ${error.status})`);
+        return;
+      }
+      setSubmitError(error instanceof Error ? error.message : 'Failed to add stock.');
+    },
+  });
+
+  return (
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center"
+      style={{ background: 'rgba(0,0,0,0.55)' }}
+      onMouseDown={(e) => { if (e.target === e.currentTarget) onClose(); }}
+    >
+      <div
+        className="rounded-2xl shadow-2xl overflow-hidden w-full max-w-sm mx-4"
+        style={{ background: 'var(--surface)', border: '1px solid var(--border2)' }}
+      >
+        <div
+          className="px-5 py-4 flex items-center gap-3 border-b"
+          style={{ borderColor: 'var(--border2)' }}
+        >
+          <span className="text-lg font-semibold text-text1" style={{ fontFamily: 'var(--font-serif)' }}>
+            Add Stock
+          </span>
+          <div className="flex-1" />
+          <button
+            onClick={onClose}
+            className="w-7 h-7 rounded-lg flex items-center justify-center text-text3 hover:text-text1 transition-colors"
+            style={{ background: 'var(--surface2)' }}
+          >
+            ✕
+          </button>
+        </div>
+
+        <div className="px-5 py-4 flex flex-col gap-4">
+          <div>
+            <p className="text-xs text-text3 font-medium uppercase tracking-wider mb-1.5">Product</p>
+            <p className="text-text1 font-medium">{product.name}</p>
+          </div>
+
+          <div>
+            <label className="text-xs text-text3 font-medium uppercase tracking-wider block mb-1.5">
+              Quantity to add
+            </label>
+            <input
+              type="number"
+              min="0.001"
+              step="0.001"
+              value={quantity}
+              onChange={(e) => setQuantity(e.target.value)}
+              className="w-full px-3 py-2 rounded-lg text-sm text-text1 focus:outline-none focus:border-accent transition-colors font-mono"
+              style={{ background: 'var(--surface2)', border: '1px solid var(--border2)' }}
+            />
+          </div>
+
+          <div>
+            <label className="text-xs text-text3 font-medium uppercase tracking-wider block mb-1.5">
+              Unit cost (optional)
+            </label>
+            <input
+              type="number"
+              min="0"
+              step="0.01"
+              value={unitCost}
+              onChange={(e) => setUnitCost(e.target.value)}
+              className="w-full px-3 py-2 rounded-lg text-sm text-text1 focus:outline-none focus:border-accent transition-colors font-mono"
+              style={{ background: 'var(--surface2)', border: '1px solid var(--border2)' }}
+            />
+          </div>
+
+          <div>
+            <label className="text-xs text-text3 font-medium uppercase tracking-wider block mb-1.5">
+              Note (optional)
+            </label>
+            <input
+              value={note}
+              onChange={(e) => setNote(e.target.value)}
+              placeholder="Initial stock / restock"
+              className="w-full px-3 py-2 rounded-lg text-sm text-text1 focus:outline-none focus:border-accent transition-colors"
+              style={{ background: 'var(--surface2)', border: '1px solid var(--border2)' }}
+            />
+          </div>
+        </div>
+
+        <div
+          className="px-5 py-3 flex gap-2 border-t"
+          style={{ borderColor: 'var(--border2)', background: 'var(--surface2)' }}
+        >
+          <button
+            type="button"
+            onClick={onClose}
+            className="flex-1 py-2 rounded-lg text-sm text-text2 hover:text-text1 transition-colors"
+            style={{ background: 'var(--surface)', border: '1px solid var(--border2)' }}
+          >
+            Cancel
+          </button>
+          <button
+            type="button"
+            onClick={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              setSubmitError(null);
+              mutation.mutate();
+            }}
+            disabled={mutation.isPending}
+            className="flex-1 py-2 rounded-lg text-sm font-semibold transition-all disabled:opacity-40"
+            style={{ background: 'var(--accent)', color: '#fff' }}
+          >
+            {mutation.isPending ? 'Saving…' : 'Add Stock'}
+          </button>
+        </div>
+
+        {mutation.isPending && (
+          <p className="px-5 pb-2 text-xs text-text3">Submitting stock-in request…</p>
+        )}
+
+        {submitError && (
+          <p className="px-5 pb-3 text-xs text-pos-red">{submitError}</p>
+        )}
+      </div>
+    </div>
+  );
+}
+
 // ── Main Page ────────────────────────────────────────────────
 
 export function InventoryPage() {
-  const { user } = useAuth();
+  const { user, branch } = useAuth();
   const [search, setSearch] = useState('');
   const [page, setPage] = useState(1);
   const [selectedCategory, setSelectedCategory] = useState('');
   const [editingProduct, setEditingProduct] = useState<PosProduct | null>(null);
+  const [stockingProduct, setStockingProduct] = useState<PosProduct | null>(null);
 
   const { data: categories } = useQuery({
     queryKey: ['categories'],
@@ -181,10 +355,11 @@ export function InventoryPage() {
   });
 
   const { data, isLoading, isError } = useQuery({
-    queryKey: ['inventory', search, page, selectedCategory, user?.defaultBranchId],
+    queryKey: ['inventory', search, page, selectedCategory, branch?.id],
     queryFn: () =>
       fetchProducts({
-        branchId: user?.defaultBranchId,
+        branchId: branch?.id,
+        categoryId: selectedCategory || undefined,
         search: search || undefined,
         page,
         pageSize: 20,
@@ -192,7 +367,32 @@ export function InventoryPage() {
     staleTime: 30 * 1000,
   });
 
-  const products = data?.items ?? [];
+  const { data: balances = [] } = useQuery({
+    queryKey: ['inventory-balances', branch?.id],
+    queryFn: () =>
+      fetchInventoryBalances({
+        branchId: branch!.id,
+        page: 1,
+        pageSize: 500,
+      }),
+    enabled: !!branch?.id,
+    staleTime: 15 * 1000,
+  });
+
+  const stockByProductId = new Map<string, number>(
+    balances
+      .map((b) => {
+        const productId = b.productId ?? b.product_id;
+        const qty = b.onHandQty ?? b.on_hand_qty;
+        return productId ? [productId, Number(qty ?? 0)] as const : null;
+      })
+      .filter((entry): entry is readonly [string, number] => entry !== null),
+  );
+
+  const products = (data?.items ?? []).map((product) => ({
+    ...product,
+    stockQty: stockByProductId.get(product.id) ?? product.stockQty ?? 0,
+  }));
   const pagination = data?.pagination;
 
   return (
@@ -264,6 +464,7 @@ export function InventoryPage() {
                   key={product.id}
                   product={product}
                   onEdit={() => setEditingProduct(product)}
+                  onAddStock={() => setStockingProduct(product)}
                 />
               ))}
             </tbody>
@@ -303,13 +504,21 @@ export function InventoryPage() {
           onClose={() => setEditingProduct(null)}
         />
       )}
+
+      {stockingProduct && branch?.id && (
+        <StockInModal
+          product={stockingProduct}
+          branchId={branch.id}
+          onClose={() => setStockingProduct(null)}
+        />
+      )}
     </div>
   );
 }
 
 // ── Product Row ──────────────────────────────────────────────
 
-function ProductRow({ product, onEdit }: { product: PosProduct; onEdit: () => void }) {
+function ProductRow({ product, onEdit, onAddStock }: { product: PosProduct; onEdit: () => void; onAddStock: () => void }) {
   const stockQty = product.stockQty ?? null;
   const threshold = product.lowStockThreshold ?? 5;
   const isLowStock = stockQty !== null && stockQty <= threshold && stockQty > 0;
@@ -356,14 +565,24 @@ function ProductRow({ product, onEdit }: { product: PosProduct; onEdit: () => vo
         )}
       </td>
       <td className="px-3 py-3">
-        <button
-          onClick={onEdit}
-          className="opacity-0 group-hover:opacity-100 transition-opacity w-7 h-7 rounded-lg flex items-center justify-center text-text3 hover:text-text1 text-xs"
-          style={{ background: 'var(--surface2)' }}
-          title="Edit product"
-        >
-          ✏️
-        </button>
+        <div className="flex items-center justify-end gap-1.5 opacity-0 group-hover:opacity-100 transition-opacity">
+          <button
+            onClick={onAddStock}
+            className="w-7 h-7 rounded-lg flex items-center justify-center text-text3 hover:text-text1 text-xs"
+            style={{ background: 'var(--surface2)' }}
+            title="Add stock"
+          >
+            ➕
+          </button>
+          <button
+            onClick={onEdit}
+            className="w-7 h-7 rounded-lg flex items-center justify-center text-text3 hover:text-text1 text-xs"
+            style={{ background: 'var(--surface2)' }}
+            title="Edit product"
+          >
+            ✏️
+          </button>
+        </div>
       </td>
     </tr>
   );

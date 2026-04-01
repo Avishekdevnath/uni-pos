@@ -1,7 +1,7 @@
 import { useState, useRef, useCallback, useMemo } from 'react';
 import { useMutation } from '@tanstack/react-query';
 import { useAuth } from '../../hooks/use-auth';
-import { createDraftOrder, addInvoiceItem, completeOrder } from '../../lib/api';
+import { createDraftOrder, addInvoiceItem, completeOrder, fetchProducts } from '../../lib/api';
 
 interface LineItem {
   id: string;
@@ -49,6 +49,7 @@ export function InvoiceEntryPage() {
   const [tdQr, setTdQr] = useState('');
   const [tdQrRef, setTdQrRef] = useState('');
   const [tdCash, setTdCash] = useState('');
+  const [isResolvingItem, setIsResolvingItem] = useState(false);
 
   const barcodeRef = useRef<HTMLInputElement>(null);
 
@@ -69,16 +70,79 @@ export function InvoiceEntryPage() {
   const roundOff = Math.round(payable) - payable;
   const change = cashReceived + tenderTotal - payable + roundOff;
 
-  const addRow = useCallback(() => {
+  const resolveItemFromCatalog = useCallback(async () => {
+    if (!branch?.id) return null;
+
+    const rawBarcode = barcode.trim();
+    const rawDesc = desc.trim();
+
+    if (!rawBarcode && !rawDesc) return null;
+
+    if (rawBarcode) {
+      const byBarcode = await fetchProducts({
+        branchId: branch.id,
+        barcode: rawBarcode,
+        page: 1,
+        pageSize: 5,
+      });
+      if (byBarcode.items.length > 0) return byBarcode.items[0];
+    }
+
+    const lookup = rawDesc || rawBarcode;
+    const bySearch = await fetchProducts({
+      branchId: branch.id,
+      search: lookup,
+      page: 1,
+      pageSize: 10,
+    });
+
+    if (bySearch.items.length === 0) return null;
+
+    const exact = bySearch.items.find((p) =>
+      p.name.toLowerCase() === lookup.toLowerCase() ||
+      (p.sku ? p.sku.toLowerCase() === lookup.toLowerCase() : false) ||
+      (p.barcode ? p.barcode.toLowerCase() === lookup.toLowerCase() : false),
+    );
+
+    return exact ?? bySearch.items[0];
+  }, [barcode, branch?.id, desc]);
+
+  const addRow = useCallback(async () => {
     if (!desc && !barcode) return;
+
+    let nextBarcode = barcode.trim();
+    let nextDesc = desc.trim();
     const qtyNum = parseFloat(qty) || 1;
-    const priceNum = parseFloat(price) || 0;
+    let priceNum = parseFloat(price) || 0;
+
+    if (!nextDesc || priceNum <= 0) {
+      try {
+        setIsResolvingItem(true);
+        const matched = await resolveItemFromCatalog();
+        if (matched) {
+          nextBarcode = nextBarcode || matched.barcode || matched.sku || '';
+          nextDesc = nextDesc || matched.name;
+          if (priceNum <= 0) priceNum = Number(matched.price) || 0;
+        }
+      } catch {
+        // Keep manual flow when lookup fails
+      } finally {
+        setIsResolvingItem(false);
+      }
+    }
+
+    if (!nextDesc || priceNum <= 0) {
+      setError('Product not found from catalog. Enter a valid item code/name and price.');
+      return;
+    }
+
+    setError(null);
     setItems((prev) => [
       ...prev,
       {
         id: crypto.randomUUID(),
-        barcode,
-        description: desc || barcode,
+        barcode: nextBarcode,
+        description: nextDesc,
         qty: qtyNum,
         unitPrice: priceNum,
         amount: qtyNum * priceNum,
@@ -86,7 +150,7 @@ export function InvoiceEntryPage() {
     ]);
     setBarcode(''); setDesc(''); setQty('1'); setPrice('');
     setTimeout(() => barcodeRef.current?.focus(), 10);
-  }, [barcode, desc, qty, price]);
+  }, [barcode, desc, qty, price, resolveItemFromCatalog]);
 
   const removeRow = (id: string) => setItems((prev) => prev.filter((i) => i.id !== id));
 
@@ -258,7 +322,7 @@ export function InvoiceEntryPage() {
                 placeholder="Item Code / Barcode"
                 value={barcode}
                 onChange={(e) => setBarcode(e.target.value)}
-                onKeyDown={(e) => e.key === 'Enter' && addRow()}
+                onKeyDown={(e) => e.key === 'Enter' && void addRow()}
                 className="flex-1 bg-transparent border-none outline-none font-mono text-[13px] font-semibold placeholder:font-normal placeholder:text-text3"
                 style={{ color: 'var(--accent)' }}
               />
@@ -272,7 +336,7 @@ export function InvoiceEntryPage() {
                 placeholder="Product description"
                 value={desc}
                 onChange={(e) => setDesc(e.target.value)}
-                onKeyDown={(e) => e.key === 'Enter' && addRow()}
+                onKeyDown={(e) => e.key === 'Enter' && void addRow()}
                 className="flex-1 bg-transparent border-none outline-none text-text1 text-[13px] placeholder:text-text3"
               />
             </div>
@@ -286,7 +350,7 @@ export function InvoiceEntryPage() {
                 placeholder="Price"
                 value={price}
                 onChange={(e) => setPrice(e.target.value)}
-                onKeyDown={(e) => e.key === 'Enter' && addRow()}
+                onKeyDown={(e) => e.key === 'Enter' && void addRow()}
                 className="w-full bg-transparent border-none outline-none font-mono text-[13px] text-right text-text1 placeholder:text-left placeholder:text-text3"
               />
             </div>
@@ -300,16 +364,17 @@ export function InvoiceEntryPage() {
                 placeholder="Qty"
                 value={qty}
                 onChange={(e) => setQty(e.target.value)}
-                onKeyDown={(e) => e.key === 'Enter' && addRow()}
+                onKeyDown={(e) => e.key === 'Enter' && void addRow()}
                 className="w-full bg-transparent border-none outline-none font-mono text-[13px] text-right text-text1 placeholder:text-left placeholder:text-text3"
               />
             </div>
             {/* Add button */}
             <button
-              onClick={addRow}
+              onClick={() => void addRow()}
+              disabled={isResolvingItem}
               className="rounded-[7px] px-4 py-2 text-[13px] font-bold cursor-pointer whitespace-nowrap transition-colors"
               style={{ background: 'var(--accent)', color: '#ffffff' }}
-            >+ Add</button>
+            >{isResolvingItem ? 'Searching…' : '+ Add'}</button>
           </div>
 
           {/* Items table */}

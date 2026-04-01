@@ -34,6 +34,7 @@ const SYSTEM_ROLE_PERMISSIONS: Record<string, string[]> = {
     'transfers:create', 'transfers:read',
   ],
   cashier: [
+    'products:read', 'categories:read', 'inventory:read',
     'orders:create', 'pos:sell', 'pos:void', 'pos:open_drawer',
   ],
   senior_staff: [
@@ -113,11 +114,19 @@ export class RbacService {
 
     let codes = await this.getPermissionsForRole(roleId);
 
+    const role = await this.roleRepo.findOne({ where: { id: roleId } });
+
+    // Legacy compatibility: older cashier roles may exist without inventory/product
+    // read permissions. Merge in the current baseline so cashier can access
+    // inventory views consistently.
+    if (role?.isSystem && role.slug === 'cashier') {
+      codes = Array.from(new Set([...codes, ...SYSTEM_ROLE_PERMISSIONS.cashier]));
+    }
+
     // Backward compatibility: if a system role has no permissions in the database
     // (can happen if permissions weren't seeded when the tenant was created),
     // apply the standard permission matrix as a fallback.
     if (codes.length === 0) {
-      const role = await this.roleRepo.findOne({ where: { id: roleId } });
       if (role?.isSystem && role.slug && SYSTEM_ROLE_PERMISSIONS[role.slug]) {
         codes = SYSTEM_ROLE_PERMISSIONS[role.slug];
       }

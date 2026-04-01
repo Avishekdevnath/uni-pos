@@ -62,6 +62,7 @@ const ROLE_PERMISSIONS: Record<string, readonly string[]> = {
   ],
 
   cashier: [
+    'products:read', 'categories:read', 'inventory:read',
     'orders:create', 'pos:sell', 'pos:void', 'pos:open_drawer',
   ],
 
