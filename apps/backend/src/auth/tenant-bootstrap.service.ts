@@ -25,6 +25,7 @@ const ALL_PERMISSIONS = [
   'branch_groups:create', 'branch_groups:read', 'branch_groups:update', 'branch_groups:delete',
   'pricing:read', 'pricing:update',
   'transfers:create', 'transfers:read', 'transfers:receive',
+  'roles:manage',
 ] as const;
 
 // ---------------------------------------------------------------------------
@@ -47,6 +48,7 @@ const ROLE_PERMISSIONS: Record<string, readonly string[]> = {
     'branch_groups:read',
     'pricing:read', 'pricing:update',
     'transfers:create', 'transfers:read', 'transfers:receive',
+    'roles:manage',
   ],
 
   manager: [
