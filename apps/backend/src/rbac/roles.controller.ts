@@ -11,7 +11,8 @@ import {
 } from '@nestjs/common';
 import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { InjectRepository } from '@nestjs/typeorm';
-import { In, Repository } from 'typeorm';
+import { IsArray, IsString, ArrayMaxSize } from 'class-validator';
+import { In, Repository, DataSource } from 'typeorm';
 import { Request } from 'express';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { AuthUserPayload } from '../auth/interfaces/auth-user-payload.interface';
@@ -23,6 +24,13 @@ import { RolePermissionEntity } from './entities/role-permission.entity';
 import { RbacService } from './rbac.service';
 
 type RequestWithUser = Request & { user?: AuthUserPayload };
+
+class SetRolePermissionsDto {
+  @IsArray()
+  @IsString({ each: true })
+  @ArrayMaxSize(200)
+  permissionCodes!: string[];
+}
 
 @ApiTags('roles')
 @ApiBearerAuth()
@@ -38,6 +46,7 @@ export class RolesController {
     @InjectRepository(RolePermissionEntity)
     private readonly rolePermissionRepo: Repository<RolePermissionEntity>,
     private readonly rbacService: RbacService,
+    private readonly dataSource: DataSource,
   ) {}
 
   @Get()
@@ -59,7 +68,7 @@ export class RolesController {
   }
 
   @Get('permissions')
-  @ApiOperation({ summary: 'List all available permissions' })
+  @ApiOperation({ summary: 'List all available permissions (global catalogue, not tenant-scoped)' })
   async listAllPermissions() {
     const permissions = await this.permissionRepo.find({
       order: { resource: 'ASC', action: 'ASC' },
@@ -88,11 +97,11 @@ export class RolesController {
 
   @Put(':id/permissions')
   @HttpCode(200)
-  @ApiOperation({ summary: 'Replace all permissions for a role' })
+  @ApiOperation({ summary: 'Replace all permissions for a role (atomic)' })
   async setRolePermissions(
     @Param('id') id: string,
     @Req() req: RequestWithUser,
-    @Body() body: { permissionCodes: string[] },
+    @Body() body: SetRolePermissionsDto,
   ) {
     const tenantId = req.user!.tenantId;
     const role = await this.roleRepo.findOne({ where: { id, tenantId } });
@@ -104,14 +113,16 @@ export class RolesController {
         })
       : [];
 
-    await this.rolePermissionRepo.delete({ roleId: id });
+    await this.dataSource.transaction(async (manager) => {
+      await manager.delete(RolePermissionEntity, { roleId: id });
 
-    if (permissions.length > 0) {
-      const rows = permissions.map((p) =>
-        this.rolePermissionRepo.create({ roleId: id, permissionId: p.id }),
-      );
-      await this.rolePermissionRepo.save(rows);
-    }
+      if (permissions.length > 0) {
+        const rows = permissions.map((p) =>
+          manager.create(RolePermissionEntity, { roleId: id, permissionId: p.id }),
+        );
+        await manager.save(RolePermissionEntity, rows);
+      }
+    });
 
     this.rbacService.invalidateRoleCache(id);
 
