@@ -6,6 +6,7 @@ import { RolePermissionEntity } from './entities/role-permission.entity';
 import { TenantEntity } from '../database/entities/tenant.entity';
 import { RbacService } from './rbac.service';
 import { PermissionGuard } from './guards/permission.guard';
+import { RolesController } from './roles.controller';
 
 @Module({
   imports: [
@@ -16,6 +17,7 @@ import { PermissionGuard } from './guards/permission.guard';
       TenantEntity,
     ]),
   ],
+  controllers: [RolesController],
   providers: [RbacService, PermissionGuard],
   exports: [RbacService, PermissionGuard],
 })
